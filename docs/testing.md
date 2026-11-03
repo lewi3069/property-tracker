@@ -29,6 +29,19 @@ During reopening of the viewer after the previous freeze, the shared Android `me
 
 The operator reported that the TV interface remained responsive and manually restarted the video. This was a video-playback failure rather than a confirmed complete device/UI lockup. Further comparison should leave the floating camera running while starting Plex, identify the active codec paths, and avoid returning through the multi-camera overview during that phase.
 
+## Resumed Plex comparison
+
+With the isolated camera kept running, the operator unlocked Plex and resumed a video. Property Tracker 0.1.11 then completed a 15-minute comparison (901 seconds, 61 samples at approximately 15-second intervals):
+
+- Both the camera and Plex compositor presentation timestamps advanced at every interval.
+- The camera, Plex, shared codec service, and SurfaceFlinger each retained the same process ID throughout.
+- Plex was foreground and reported playing at every sample; the floating window remained present.
+- Camera resident memory ranged from approximately 29 to 37 MiB; available system memory ranged from approximately 112 to 180 MiB.
+- Plex used the hardware AVC/H.264 decoder. The operator confirmed that both pictures looked normal.
+- No intentional app restart, installation, or reboot occurred during the phase. Both apps were left playing afterward.
+
+This is a successful observed H.264 coexistence run after the codec-service restart, with the same camera instance carried into Plex playback. It does not resolve the earlier native H.265 failure, prove which stream triggered it, or validate transitions through the multi-camera overview. No playback-code fix was deployed for this retest. Longer sessions and targeted stream/transition checks remain necessary; sub-interval glitches are not ruled out by periodic frame samples.
+
 ## Repeating a passive comparison
 
 With ADB connected to the intended device, start the monitor and play a video normally:
