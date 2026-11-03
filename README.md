@@ -4,6 +4,8 @@ Property Tracker is a native Android APK for Android-based Fire TV sticks and NV
 
 [Download Property Tracker 0.1.11](https://github.com/lewi3069/property-tracker/releases/tag/v0.1.11) or build it locally.
 
+**Current playback limitation:** floating video has been observed to freeze during Plex coexistence on an AFTMM Fire TV Stick, despite an earlier successful 15-minute run. Investigation is ongoing; see [the test results and known issue](docs/testing.md#follow-up-freeze-observed-in-0111).
+
 ## Build and install
 
 Open this directory in Android Studio with JDK 17 and Android SDK 35, or use the task-local Windows toolchain:

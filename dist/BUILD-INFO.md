@@ -12,6 +12,8 @@
 
 A five-minute Plex-only baseline and 15-minute Plex-plus-camera comparison completed on an AFTMM Fire TV Stick using the preceding 0.1.10 playback code. Both app processes stayed stable; the camera remained present in all 60 samples, and its frame timestamps advanced through the final sample. The operator confirmed normal pictures. See [test scope and limitations](../docs/testing.md).
 
+A subsequent 0.1.11 run confirmed the hidden name bar but reproduced a playback freeze while the app process stayed alive. The freeze remains unresolved; the earlier test does not establish sustained reliability.
+
 APK SHA-256:
 
 `c3d676ebf1e121c492dd296cd304872fa703d4d1a4d5c8f254cdcbac977775c2`
