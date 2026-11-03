@@ -83,6 +83,12 @@ The monitor reads app/codec/compositor PIDs, process and global memory/swap, cam
 
 Establish a Plex-only baseline, then repeat with one floating substream using the same video and playback settings. Record the time and affected component if a window disappears, playback freezes, an app exits, or the device restarts. Keep deliberate process-recovery tests separate and clearly announce any intentional interruption.
 
+## Version 0.1.13 artwork update
+
+Version 0.1.13 replaces the placeholder launcher art with a property-and-camera icon and a named TV banner. The icon has legacy and adaptive resources, including a monochrome foreground. The static banner is supplied at all five standard densities. SVG masters and PNG previews use the same geometry as the app resources; the banner wordmark is baked into the PNGs to avoid long vector paths at launcher render time.
+
+Host checks passed: 61 unit/Robolectric tests, Android resource packaging, zero lint errors / 13 warnings, and APK signature verification with the maintained certificate. The manifest's icon/banner references and version code 14 were verified in the APK. No playback Java code changed. This APK was not installed or live-playback-tested during the artwork update; the 45-minute result above belongs to 0.1.12.
+
 ## Remaining validation
 
 - Complete isolated foreground-service recovery and pending-restart cancellation on physical hardware.
