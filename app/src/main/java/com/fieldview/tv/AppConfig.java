@@ -12,6 +12,7 @@ public final class AppConfig {
     public final List<Camera> cameras = new ArrayList<>();
     public int visibleCount = 4;
     public boolean useMainStream = true;
+    public boolean softwareFloatingH264;
     public String site = "wrenhaven", display = "tv", broker = "", brokerUser = "", brokerPassword = "";
     public String clientId = "fieldview-" + UUID.randomUUID().toString();
 
@@ -58,6 +59,7 @@ public final class AppConfig {
         JSONArray list = new JSONArray();
         for (Camera camera : cameras) list.put(camera.toJson());
         return object.put("cameras", list).put("visibleCount", visibleCount).put("useMainStream", useMainStream)
+                .put("softwareFloatingH264", softwareFloatingH264)
                 .put("site", site).put("display", display).put("broker", broker).put("brokerUser", brokerUser)
                 .put("brokerPassword", brokerPassword).put("clientId", clientId);
     }
@@ -66,6 +68,7 @@ public final class AppConfig {
         AppConfig config = new AppConfig();
         config.visibleCount = Math.max(1, Math.min(9, object.optInt("visibleCount", 4)));
         config.useMainStream = object.optBoolean("useMainStream", true);
+        config.softwareFloatingH264 = object.optBoolean("softwareFloatingH264", false);
         config.site = object.optString("site", "wrenhaven");
         config.display = object.optString("display", "tv");
         config.broker = object.optString("broker", "");

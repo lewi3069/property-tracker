@@ -19,7 +19,7 @@ The 0.1.11 update changes the visible app name to Property Tracker and hides the
 
 After installing 0.1.11 and restoring Float, the operator confirmed the name bar was gone but reported that playback froze. The camera process remained alive while its compositor presentation timestamps stopped advancing. No matching Java/native crash report was found. Property Tracker was then intentionally force-stopped to isolate the camera playback; Plex's process was left running. The precise cause and recovery behavior remain unverified. This follow-up means the successful 15-minute comparison above must not be treated as proof of reliable sustained Plex coexistence.
 
-The ongoing frame-progress watchdog gap described in [the code review](CODE-REVIEW-2026-11-03.md) is relevant: the current watchdog monitors startup/buffering, but can miss a frozen stream that remains READY. This is a confirmed detection gap, not proof of the underlying freeze's cause. Investigation should separate decoder/surface contention from RTSP backlog and network behavior before selecting a fix.
+The ongoing frame-progress watchdog gap described in [the code review](CODE-REVIEW-2026-11-03.md) is relevant: the 0.1.11 watchdog monitors startup/buffering, but can miss a frozen stream that remains READY. This is a confirmed detection gap, not proof of the underlying freeze's cause. Version 0.1.12 adds continuing frame-submission monitoring; its limits are described below.
 
 ## Isolation follow-up
 
@@ -40,7 +40,25 @@ With the isolated camera kept running, the operator unlocked Plex and resumed a 
 - Plex used the hardware AVC/H.264 decoder. The operator confirmed that both pictures looked normal.
 - No intentional app restart, installation, or reboot occurred during the phase. Both apps were left playing afterward.
 
-This is a successful observed H.264 coexistence run after the codec-service restart, with the same camera instance carried into Plex playback. It does not resolve the earlier native H.265 failure, prove which stream triggered it, or validate transitions through the multi-camera overview. No playback-code fix was deployed for this retest. Longer sessions and targeted stream/transition checks remain necessary; sub-interval glitches are not ruled out by periodic frame samples.
+This is a successful observed coexistence run after the codec-service restart, with the same camera instance carried into Plex playback. H.264 here identifies Plex; subsequent decoder inspection identified the floating camera as HEVC. It does not resolve the earlier native H.265 failure, prove which stream triggered it, or validate transitions through the multi-camera overview. No playback-code fix was deployed for this retest. Longer sessions and targeted stream/transition checks remain necessary; sub-interval glitches are not ruled out by periodic frame samples.
+
+## Later freeze and 0.1.12 compatibility trial
+
+Playback froze again after the resumed comparison had ended, more than 30 minutes into coexistence. Both compositor timestamps stopped advancing while the camera app, Plex, codec service, and SurfaceFlinger retained their process IDs. No new matching crash was found. Camera resident memory had increased to approximately 98 MiB; this is an observation, not proof of which queue or component caused the freeze. Decoder/resource inspection identified the floating camera's secondary stream as HEVC at 640 × 480, while Plex used hardware H.264.
+
+During a later viewer startup, SurfaceFlinger crashed in native graphics-buffer handling and the Android framework restarted. Subsequent players initialized decoders but produced no frames. The new 0.1.12 watchdog detected those 20-second stalls and retried; this did not restore the wedged platform. The device was intentionally rebooted before further comparison. Version 0.1.12 now stops after three unrecovered frame stalls rather than rebuilding players indefinitely.
+
+Version 0.1.12 includes 61 passing host tests, zero lint errors, and 14 lint warnings. Its changes are:
+
+- Monitor frame-submission progress after READY and require an actual rendered first frame during startup. Retry after 20 seconds without progress; reset retry history after 10 seconds of sustained frame progress.
+- Stop automatic frame-stall recovery after three consecutive unrecovered stalls and ask the viewer to reopen the camera.
+- Offer **Layout → Prefer software H.264 for floating video**, off by default. Only floating H.264 changes decoder preference; other formats and wall playback retain normal selection. Hardware fallback remains available if software initialization is unsupported.
+- Log low-frequency frame counters, buffering, media-buffer allocation, and heap use without stream addresses or credentials.
+- Allow an ADB setup launch with playback paused, so changing configuration or starting a single Float does not first initialize the overview: `am start -n com.fieldview.tv/.MainActivity --ez com.fieldview.tv.SETUP_ONLY true`.
+
+These app changes cannot repair a wedged system codec or compositor. Frame metadata indicates renderer submission, which can continue even if the physical display has stopped; external compositor timestamps and operator confirmation remain necessary. The media-buffer metric excludes RTSP packet queues and native allocations.
+
+The operator changed only the camera's secondary stream to H.264 for comparison. After reconnecting, 0.1.12 logged **OMX.google.h264.decoder** and **video/avc 640 × 480**; compositor timestamps advanced during the initial camera-only check. A longer Plex comparison is pending. The prior HEVC session's short passes must not be treated as proof that this change resolves sustained coexistence.
 
 ## Repeating a passive comparison
 
@@ -50,7 +68,7 @@ With ADB connected to the intended device, start the monitor and play a video no
 python .\scripts\monitor-firetv.py --serial DEVICE_ADDRESS:5555 --minutes 25
 ```
 
-The monitor reads PIDs, global memory/swap, foreground package, floating-window presence, and selected lifecycle logs. It never launches, stops, kills, installs, or reboots anything. Timestamped reports are written under ignored `.tools/diagnostics`. Use Ctrl+C to end early. Missing ADB responses must be distinguished from process death; use lifecycle evidence as well as samples.
+The monitor reads app/codec/compositor PIDs, process and global memory/swap, camera and Plex compositor timestamps, Plex playback state, foreground package, floating-window presence, and selected lifecycle logs. It never launches, stops, kills, installs, or reboots anything. Timestamped reports are written under ignored `.tools/diagnostics`. Use Ctrl+C to end early. Missing ADB responses must be distinguished from process death; use lifecycle evidence as well as samples. The named Plex surface is specific to the observed TV activity; a missing/differently named surface is not proof of a freeze.
 
 Establish a Plex-only baseline, then repeat with one floating substream using the same video and playback settings. Record the time and affected component if a window disappears, playback freezes, an app exits, or the device restarts. Keep deliberate process-recovery tests separate and clearly announce any intentional interruption.
 

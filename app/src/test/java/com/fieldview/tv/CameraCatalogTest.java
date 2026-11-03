@@ -8,6 +8,18 @@ import java.util.List;
 import static org.junit.Assert.*;
 
 public class CameraCatalogTest {
+    @Test public void floatingCompatibilityPreferenceDefaultsOffAndSurvivesSavingAndCopying() throws Exception {
+        AppConfig config = new AppConfig(); config.cameras.add(camera("barn"));
+        assertFalse(config.softwareFloatingH264);
+        org.json.JSONObject old = config.toJson(); old.remove("softwareFloatingH264");
+        assertFalse(AppConfig.fromJson(old).softwareFloatingH264);
+        config.softwareFloatingH264 = true;
+        AppConfig copied = AppConfig.fromJson(config.toJson());
+        assertTrue(copied.softwareFloatingH264);
+        assertEquals(config.cameras.get(0).password, copied.cameras.get(0).password);
+        assertEquals(config.visibleCount, copied.visibleCount);
+    }
+
     private AppConfig.Camera camera(String id) {
         AppConfig.Camera camera = new AppConfig.Camera();
         camera.id = id; camera.name = "Barn"; camera.zone = "pasture";

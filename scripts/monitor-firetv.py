@@ -4,11 +4,41 @@ import datetime as dt
 import json
 import pathlib
 import re
+import shlex
 import subprocess
 import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 PACKAGES = ("com.fieldview.tv", "com.plexapp.android")
+PROCESSES = (*PACKAGES, "media.codec", "surfaceflinger")
+SURFACES = {
+    "camera": "SurfaceView - Fieldview floating camera",
+    "plex": "SurfaceView - com.plexapp.android/tv.plex.app.MainActivity",
+}
+
+
+def surface_progress(text):
+    frames = []
+    for line in text.splitlines():
+        fields = line.split()
+        if len(fields) == 3 and all(field.isdigit() for field in fields):
+            values = [int(field) for field in fields]
+            if all(0 < value < 9223372036854775807 for value in values):
+                frames.append(values)
+    return {"valid_frames": len(frames), "latest_present_ns": max((row[1] for row in frames), default=None)}
+
+
+def plex_playback_states(text):
+    keep = False
+    states = []
+    for line in text.splitlines():
+        if "package=" in line:
+            keep = "package=com.plexapp.android " in line or line.strip().endswith("package=com.plexapp.android")
+        if keep and "state=PlaybackState" in line:
+            state = {name: float(value) for name, value in re.findall(r"\b(state|position|speed|updated)=(-?[\d.]+)", line)}
+            if state not in states:
+                states.append(state)
+    return states
 
 
 def main():
@@ -50,15 +80,27 @@ def main():
         try:
             while time.monotonic() - started < args.minutes * 60:
                 sample_start = time.monotonic()
-                pids = {package: read("shell", "pidof", package).split() for package in PACKAGES}
+                pids = {package: read("shell", "pidof", package).split() for package in PROCESSES}
+                process_memory = {}
+                for name, values in pids.items():
+                    if len(values) == 1 and values[0].isdigit():
+                        process_memory[name] = {key: int(value) for key, value in re.findall(
+                            r"^(VmRSS|VmSwap):\s+(\d+) kB", read("shell", "cat", "/proc/" + values[0] + "/status"), re.MULTILINE)}
                 memory = {name: int(value) for name, value in re.findall(
                     r"^(MemTotal|MemAvailable|MemFree|SwapTotal|SwapFree):\s+(\d+) kB",
                     read("shell", "cat", "/proc/meminfo"), re.MULTILINE)}
                 windows = read("shell", "dumpsys", "window", "windows")
                 focus_line = next((line for line in windows.splitlines() if "mCurrentFocus=" in line), "")
                 focus = re.search(r"\s([A-Za-z0-9_.]+)/", focus_line)
+                surfaces = {name: surface_progress(read("shell", "dumpsys SurfaceFlinger --latency " + shlex.quote(layer)))
+                            for name, layer in SURFACES.items()}
+                plex_states = plex_playback_states(read("shell", "dumpsys", "media_session"))
+                # Missing responses are not evidence that an app exited or a surface froze.
+                incomplete = not memory or not windows or any(not state for state in process_memory.values())
                 record("sample", elapsed_seconds=round(time.monotonic() - started), pids=pids,
-                       memory_kib=memory, foreground_package=focus.group(1) if focus else None,
+                       memory_kib=memory, process_memory_kib=process_memory, surfaces=surfaces,
+                       plex_playback_states=plex_states, incomplete_device_data=incomplete,
+                       foreground_package=focus.group(1) if focus else None,
                        floating_window_present="Fieldview floating camera" in windows)
                 print(f"{round(time.monotonic()-started)}s: Property Tracker={pids[PACKAGES[0]] or 'absent'}, "
                       f"Plex={pids[PACKAGES[1]] or 'absent'}, float={'Fieldview floating camera' in windows}", flush=True)

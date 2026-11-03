@@ -1,5 +1,7 @@
 # Native APK efficiency and reliability review — November 3, 2026
 
+**Implementation update:** this historical review describes 0.1.10. Version 0.1.12 implements continuing frame-submission monitoring, sustained-progress retry reset, bounded consecutive stall recovery, and low-frequency playback measurements. It also adds an opt-in software H.264 preference for Float. The RTSP packet queue remains unbounded; targeted camera saves, MQTT subscription acknowledgement, and the other recommendations below remain open. See [live comparison results and limits](testing.md#later-freeze-and-0112-compatibility-trial).
+
 Reviewed the native Java application, playback policy, encrypted settings, floating service, MQTT bridge, manifest, build setup, and relevant tests. This is a review with offline reproductions; application runtime code and the installed 0.1.10 APK are unchanged.
 
 This review was performed offline, without live device connections. The operator subsequently authorized a separate live comparison; see [current test results](testing.md). The review describes 0.1.10 behavior before the Property Tracker branding and floating-title update.

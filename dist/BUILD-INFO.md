@@ -1,22 +1,25 @@
-# Property Tracker 0.1.11 native APK
+# Property Tracker 0.1.12 native APK
 
 - Application label: Property Tracker
-- Application ID: `com.fieldview.tv`; version code: 12
+- Application ID: `com.fieldview.tv`; version code: 13
 - Minimum Android API: 23; target API: 35
-- APK: `property-tracker-0.1.11-debug.apk`
+- APK: `property-tracker-0.1.12-debug.apk`
 - Same signing certificate as previous Fieldview versions; saved configuration is preserved on update
-- 49 unit/Robolectric tests passed; Android lint zero errors / 16 warnings
+- 61 unit/Robolectric tests passed; Android lint zero errors / 14 warnings
 - Floating view hides the camera-name bar; grid titles and connection/error status remain available
-- SurfaceView, one silent floating substream, playback limits, and stream/recovery behavior are unchanged
+- SurfaceView, one silent floating substream, and conservative playback limits are preserved
+- Continuing frame-submission watchdog, sustained-progress retry reset, and a three-stall recovery limit
+- Optional software H.264 preference for Float; off by default, scoped to H.264 only
+- Playback statistics omit camera addresses and credentials; setup-only ADB launch avoids starting overview players
 - Public source uses generic connection examples; operator inventory, credentials, signing keys, tool caches, and diagnostic captures are excluded
 
 A five-minute Plex-only baseline and 15-minute Plex-plus-camera comparison completed on an AFTMM Fire TV Stick using the preceding 0.1.10 playback code. Both app processes stayed stable; the camera remained present in all 60 samples, and its frame timestamps advanced through the final sample. The operator confirmed normal pictures. See [test scope and limitations](../docs/testing.md).
 
-A subsequent 0.1.11 run confirmed the hidden name bar but reproduced a playback freeze while the app process stayed alive. The freeze remains unresolved; the earlier test does not establish sustained reliability.
+A subsequent 0.1.11 run confirmed the hidden name bar but reproduced a playback freeze while the app process stayed alive. Later inspection identified an HEVC floating camera alongside hardware H.264 Plex playback. A 0.1.12 H.264 secondary-stream trial now confirms the software decoder at 640 × 480; sustained Plex coexistence validation is pending. The freeze remains unresolved; earlier short tests do not establish sustained reliability. See [the current trial](../docs/testing.md#later-freeze-and-0112-compatibility-trial).
 
 APK SHA-256:
 
-`c3d676ebf1e121c492dd296cd304872fa703d4d1a4d5c8f254cdcbac977775c2`
+`d530383dc69a82ccf37315eb6a6dcea377540601e5d8d36b75a6431a87aa9cbd`
 
 Signing certificate SHA-256:
 

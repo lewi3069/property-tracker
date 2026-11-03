@@ -67,6 +67,7 @@ public class FloatingCameraService extends Service {
             else startForeground(NOTIFICATION_ID, notification);
             removeCamera();
             tile = new CameraTile(this, selected.name, true);
+            tile.setSoftwareFloatingH264(config.softwareFloatingH264);
             tile.setId(R.id.floating_camera);
             tile.setContentDescription("Floating camera " + selected.name);
             tile.setFocusable(false); tile.setClickable(false);

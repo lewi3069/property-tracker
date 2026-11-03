@@ -25,6 +25,7 @@ import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.media3.common.util.UnstableApi;
@@ -38,6 +39,7 @@ import java.util.Map;
 
 @UnstableApi
 public final class MainActivity extends Activity {
+    public static final String EXTRA_SETUP_ONLY = "com.fieldview.tv.SETUP_ONLY";
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Map<String, CameraTile> tiles = new LinkedHashMap<>();
     private ConfigStore store;
@@ -53,6 +55,7 @@ public final class MainActivity extends Activity {
     private boolean foreground;
     private boolean fullscreen;
     private boolean floatingTransition;
+    private boolean setupOnly;
     private String pendingFloatingCamera;
     private static final int OVERLAY_PERMISSION_REQUEST = 41;
     private String signature = "", mqttState = "Home Assistant control not configured";
@@ -71,6 +74,7 @@ public final class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        setupOnly = getIntent().getBooleanExtra(EXTRA_SETUP_ONLY, false);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         androidx.media3.common.util.Log.setLogLevel(androidx.media3.common.util.Log.LOG_LEVEL_OFF);
         store = new ConfigStore(this);
@@ -95,8 +99,8 @@ public final class MainActivity extends Activity {
         TextView brand = label(getString(R.string.app_name), 22); brand.setTextColor(0xFFCBE7AB);
         brand.setSingleLine(true);
         toolbar.addView(brand, new LinearLayout.LayoutParams(0, dp(48), 1));
-        autoButton = button("Auto", () -> { selector.setMode(ViewSelector.AUTO, null); render(); }); toolbar.addView(autoButton);
-        gridButton = button("Grid", () -> { selector.setMode(ViewSelector.GRID, null); render(); }); toolbar.addView(gridButton);
+        autoButton = button("Auto", () -> { setupOnly = false; selector.setMode(ViewSelector.AUTO, null); render(); }); toolbar.addView(autoButton);
+        gridButton = button("Grid", () -> { setupOnly = false; selector.setMode(ViewSelector.GRID, null); render(); }); toolbar.addView(gridButton);
         toolbar.addView(button("Layout", this::showLayout));
         toolbar.addView(button("View", this::showCameraPicker));
         toolbar.addView(button("Float", this::showFloatingCameraPicker));
@@ -121,6 +125,12 @@ public final class MainActivity extends Activity {
         FloatingCameraService.closeActive(this);
         floatingTransition = false;
         foreground = true; signature = ""; handler.post(tick); startBridge();
+    }
+    @Override protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent); setIntent(intent);
+        if (intent.getBooleanExtra(EXTRA_SETUP_ONLY, false)) {
+            setupOnly = true; releaseTiles(); signature = ""; render();
+        }
     }
     @Override protected void onStop() {
         foreground = false; handler.removeCallbacks(tick); stopBridge(); releaseTiles(); signature = "";
@@ -184,6 +194,12 @@ public final class MainActivity extends Activity {
 
     private void render() {
         if (!foreground || floatingTransition || selector == null) return;
+        if (setupOnly) {
+            String prompt = "Playback paused for setup.\n\nChoose Auto, Grid, View, or Float to start video.";
+            setFullscreen(false); empty.setVisibility(View.VISIBLE);
+            if (!prompt.contentEquals(empty.getText())) empty.setText(prompt);
+            return;
+        }
         ViewSelector.Selection selection = selector.snapshot(System.currentTimeMillis());
         setFullscreen(ViewSelector.PIN.equals(selection.mode));
         empty.setVisibility(enabledCameras.isEmpty() ? View.VISIBLE : View.GONE);
@@ -266,12 +282,17 @@ public final class MainActivity extends Activity {
         int index = 0; for (int i = 0; i < counts.length; i++) if (counts[i] == config.visibleCount) index = i;
         count.setSelection(index); fields.addView(label("Cameras visible on this screen", 14)); fields.addView(count);
         CheckBox quality = new CheckBox(this); quality.setText("Use the main stream for enlarged cameras"); quality.setChecked(config.useMainStream); fields.addView(quality);
+        CheckBox softwareFloat = new CheckBox(this); softwareFloat.setText("Prefer software H.264 for floating video");
+        softwareFloat.setChecked(config.softwareFloatingH264); fields.addView(softwareFloat);
+        fields.addView(label("Compatibility option for freezes alongside other video apps. Use a small H.264 grid stream; software decoding uses more CPU. H.265 and ordinary viewing keep their normal decoder selection.", 13));
         fields.addView(label(playbackLimits.maxVisible < 9
                 ? "This device is limited to " + playbackLimits.maxVisible + " live cameras at once. Choose any saved camera under View."
                 : "This screen saves its own layout. Start with fewer live feeds and increase after testing playback.", 13));
-        AlertDialog.Builder layoutDialog = new AlertDialog.Builder(this).setTitle("Screen layout").setView(fields).setNegativeButton("Cancel", null)
+        ScrollView scroll = new ScrollView(this); scroll.addView(fields);
+        AlertDialog.Builder layoutDialog = new AlertDialog.Builder(this).setTitle("Screen layout").setView(scroll).setNegativeButton("Cancel", null)
                 .setPositiveButton("Save", (dialog, which) -> {
                     AppConfig next = copyConfig(); next.visibleCount = counts[count.getSelectedItemPosition()]; next.useMainStream = quality.isChecked();
+                    next.softwareFloatingH264 = softwareFloat.isChecked();
                     if (save(next)) { layoutOverrideUntil = 0; selector.setCapacity(config.visibleCount); render(); }
                 });
         if (fullscreen) {
@@ -334,7 +355,7 @@ public final class MainActivity extends Activity {
         if (enabledCameras.isEmpty()) { showCameras(); return; }
         List<String> names = new ArrayList<>(); for (AppConfig.Camera camera : enabledCameras) names.add(camera.name);
         new AlertDialog.Builder(this).setTitle("View a camera").setItems(names.toArray(new String[0]),
-                (dialog, index) -> { selector.setMode(ViewSelector.PIN, enabledCameras.get(index).id); render(); })
+                (dialog, index) -> { setupOnly = false; selector.setMode(ViewSelector.PIN, enabledCameras.get(index).id); render(); })
                 .setNegativeButton("Cancel", null).show();
     }
 
