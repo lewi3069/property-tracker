@@ -4,7 +4,7 @@ Property Tracker is a native Android APK for Android-based Fire TV sticks and NV
 
 [Download Property Tracker 0.1.12](https://github.com/lewi3069/property-tracker/releases/tag/v0.1.12) or build it locally.
 
-**Current playback limitation:** floating video has been observed to freeze during Plex coexistence on an AFTMM Fire TV Stick, despite successful short runs. Version 0.1.12 adds stall recovery and an optional software H.264 compatibility mode; sustained validation is pending. See [the test results and known issue](docs/testing.md#later-freeze-and-0112-compatibility-trial).
+**Playback compatibility:** earlier HEVC floating-camera/Plex sessions froze on an AFTMM Fire TV Stick. Version 0.1.12 adds stall recovery and an optional software H.264 compatibility mode. One 45-minute comparison with a 640 × 480 software-decoded H.264 camera and hardware-H.264 Plex completed successfully. See [the test results and limits](docs/testing.md#later-freeze-and-0112-compatibility-trial).
 
 ## Build and install
 
@@ -68,6 +68,6 @@ Configure cameras privately on each installation. MQTT delivery and real Home As
 .\scripts\build-android.ps1
 ```
 
-This runs JVM tests for catalog copying/order persistence, the native view selector/command router, connection/error handling, and Robolectric UI regression tests for form visibility, keyboard resizing, and Save-button focus, builds the APK, and runs Android lint. APK signature and package metadata are checked separately with the SDK tools. Playback, native remote navigation, camera copy/reordering/enabled state, and a 15-minute floating-camera/Plex comparison have been exercised on an AFTMM device. See [validation details](docs/testing.md). Other hardware, decoder capacity, MQTT connectivity, and longer sustained operation still need testing.
+This runs JVM tests for catalog copying/order persistence, the native view selector/command router, connection/error handling, and Robolectric UI regression tests for form visibility, keyboard resizing, and Save-button focus, builds the APK, and runs Android lint. APK signature and package metadata are checked separately with the SDK tools. Playback, native remote navigation, camera copy/reordering/enabled state, and a 45-minute software-H.264 floating-camera/hardware-H.264 Plex comparison have been exercised on an AFTMM device. See [validation details](docs/testing.md). Other hardware, decoder capacity, MQTT connectivity, and longer sustained operation still need testing.
 
 The earlier browser layout experiment is preserved under `design-reference/browser-prototype`. It is not packaged into the Android app and is no longer the project entry point. The native implementation is under `app/src/main`.

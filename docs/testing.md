@@ -58,7 +58,18 @@ Version 0.1.12 includes 61 passing host tests, zero lint errors, and 14 lint war
 
 These app changes cannot repair a wedged system codec or compositor. Frame metadata indicates renderer submission, which can continue even if the physical display has stopped; external compositor timestamps and operator confirmation remain necessary. The media-buffer metric excludes RTSP packet queues and native allocations.
 
-The operator changed only the camera's secondary stream to H.264 for comparison. After reconnecting, 0.1.12 logged **OMX.google.h264.decoder** and **video/avc 640 × 480**; compositor timestamps advanced during the initial camera-only check. A longer Plex comparison is pending. The prior HEVC session's short passes must not be treated as proof that this change resolves sustained coexistence.
+The operator changed only the camera's secondary stream to H.264 for comparison. After reconnecting, 0.1.12 logged **OMX.google.h264.decoder** and **video/avc 640 × 480**; compositor timestamps advanced during the initial camera-only check. Plex initialized **OMX.MTK.VIDEO.DECODER.AVC**. The main recording stream was not changed.
+
+The software-H.264 Float / hardware-H.264 Plex comparison completed **45 minutes** (2,701 seconds, 181 samples at approximately 15-second intervals):
+
+- Camera and Plex compositor timestamps advanced at every sampled interval. Plex reported playing and the floating window was present at all 181 samples.
+- Both apps, the codec service, and SurfaceFlinger retained their process IDs throughout. No intentional restart, installation, or app switch occurred during collection.
+- No camera playback errors, watchdog stalls, or decoder-dropped frames were recorded.
+- Camera resident memory ranged from approximately 53 to 67 MiB, ending at 53 MiB versus 66 MiB initially. Available system memory ranged from approximately 141 to 197 MiB.
+- Reported camera buffering stayed between 943 and 1,032 ms. Media-buffer allocation was 192–256 KiB, and sampled Java heap use was approximately 13–17 MiB. These metrics exclude other RTSP queues and native allocations.
+- The operator confirmed both pictures were normal at the beginning and again after 35 minutes. Both apps were left playing after collection ended.
+
+This is one successful 45-minute run on the tested AFTMM, beyond the earlier failure window. Camera encoding, decoder preference, application version, and the platform restart differ from earlier runs; this comparison does not isolate the effect of each change or establish indefinite stability. It does not validate hardware-decoded H.264 Float, HEVC coexistence, other Plex encodings/resolutions, multi-camera transitions, or other devices. Periodic samples cannot rule out shorter glitches. Real watchdog recovery from a deliberate connection loss remains a separate check.
 
 ## Repeating a passive comparison
 

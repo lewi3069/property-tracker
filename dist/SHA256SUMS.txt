@@ -1,2 +1,1 @@
-c3d676ebf1e121c492dd296cd304872fa703d4d1a4d5c8f254cdcbac977775c2  property-tracker-0.1.11-debug.apk
 d530383dc69a82ccf37315eb6a6dcea377540601e5d8d36b75a6431a87aa9cbd  property-tracker-0.1.12-debug.apk
