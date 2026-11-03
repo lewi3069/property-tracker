@@ -21,6 +21,14 @@ After installing 0.1.11 and restoring Float, the operator confirmed the name bar
 
 The ongoing frame-progress watchdog gap described in [the code review](CODE-REVIEW-2026-11-03.md) is relevant: the current watchdog monitors startup/buffering, but can miss a frozen stream that remains READY. This is a confirmed detection gap, not proof of the underlying freeze's cause. Investigation should separate decoder/surface contention from RTSP backlog and network behavior before selecting a fix.
 
+## Isolation follow-up
+
+A later camera-only run kept the same Amcrest substream floating over a static Fire TV Settings screen for five minutes. Camera presentation timestamps advanced at every 15-second sample, the app process remained running, and sampled resident memory decreased rather than growing steadily. Plex had no active video session during this phase.
+
+During reopening of the viewer after the previous freeze, the shared Android `media.codec` process crashed and restarted. Its native tombstone reports SIGSEGV in the MediaTek H.265 decoder (`libvcodecdrv.so`, including `Vdec_Drv_H265_decodeEx`). This establishes a platform decoder failure in this session. The crash timestamp is later than the reported freeze; it does not identify which client/stream caused it or prove the earlier freeze had the same cause. The isolated run began after the codec-service restart, which also limits direct comparison with the earlier run.
+
+The operator reported that the TV interface remained responsive and manually restarted the video. This was a video-playback failure rather than a confirmed complete device/UI lockup. Further comparison should leave the floating camera running while starting Plex, identify the active codec paths, and avoid returning through the multi-camera overview during that phase.
+
 ## Repeating a passive comparison
 
 With ADB connected to the intended device, start the monitor and play a video normally:
