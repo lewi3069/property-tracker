@@ -4,11 +4,11 @@
 
 Property Tracker is a native Android APK for Android-based Fire TV sticks and NVIDIA Shield. It uses an Android Activity, native TV controls, and Media3 video surfaces. Its original development name was Fieldview; the Android package ID (`com.fieldview.tv`), encrypted-settings alias, and MQTT topic prefix remain stable so existing installations keep their configuration.
 
-[Download Property Tracker 0.1.13](https://github.com/lewi3069/property-tracker/releases/tag/v0.1.13) or build it locally.
+[Download Property Tracker 0.1.14](https://github.com/lewi3069/property-tracker/releases/tag/v0.1.14) or build it locally.
 
 **Playback compatibility:** earlier HEVC floating-camera/Plex sessions froze on an AFTMM Fire TV Stick. Version 0.1.12 adds stall recovery and an optional software H.264 compatibility mode. One 45-minute comparison with a 640 × 480 software-decoded H.264 camera and hardware-H.264 Plex completed successfully. See [the test results and limits](docs/testing.md#later-freeze-and-0112-compatibility-trial).
 
-Version 0.1.13 adds a property-and-camera launcher icon, an adaptive icon, and a matching TV banner. [Artwork and regeneration instructions](assets/branding/README.md). Playback logic is unchanged from 0.1.12.
+Version 0.1.14 supplies PNG launcher icons and a matching TV banner at five densities, with explicit launcher-activity artwork. On the tested Fire TV, cached Home and app-grid thumbnails also needed a launcher-registration refresh; see [the icon validation and refresh notes](docs/testing.md#version-0114-fire-tv-icon-compatibility). [Artwork and regeneration instructions](assets/branding/README.md). Playback logic is unchanged from 0.1.12.
 
 ## Build and install
 
@@ -21,12 +21,12 @@ Open this directory in Android Studio with JDK 17 and Android SDK 35, or use the
 
 The bootstrap downloads official build tools into the ignored `.tools` directory and accepts their Android SDK build-tool licenses. JDK and Gradle archives are checksum-verified. No system-wide tool installation is needed. Build caches, debug signing key, and SDK stay in the project.
 
-The build creates `app/build/outputs/apk/debug/app-debug.apk`. A copy for installation is provided as `dist/property-tracker-0.1.13-debug.apk` after verification. This is a development APK signed with the same local debug key as earlier versions, so it can update the existing installation without clearing saved settings. A fresh bootstrap creates a new local signing key; updating an existing installation requires its original signing key or a matching signed release APK.
+The build creates `app/build/outputs/apk/debug/app-debug.apk`. A copy for installation is provided as `dist/property-tracker-0.1.14-debug.apk` after verification. This is a development APK signed with the same local debug key as earlier versions, so it can update the existing installation without clearing saved settings. A fresh bootstrap creates a new local signing key; updating an existing installation requires its original signing key or a matching signed release APK.
 
 Once ADB is paired with the target device:
 
 ```powershell
-adb -s DEVICE_ADDRESS:5555 install -r .\dist\property-tracker-0.1.13-debug.apk
+adb -s DEVICE_ADDRESS:5555 install -r .\dist\property-tracker-0.1.14-debug.apk
 adb -s DEVICE_ADDRESS:5555 shell am start -n com.fieldview.tv/.MainActivity
 ```
 

@@ -89,6 +89,20 @@ Version 0.1.13 replaces the placeholder launcher art with a property-and-camera 
 
 Host checks passed: 61 unit/Robolectric tests, Android resource packaging, zero lint errors / 13 warnings, and APK signature verification with the maintained certificate. The manifest's icon/banner references and version code 14 were verified in the APK. No playback Java code changed. This APK was not installed or live-playback-tested during the artwork update; the 45-minute result above belongs to 0.1.12.
 
+## Version 0.1.14 Fire TV icon compatibility
+
+Version 0.1.13's installed-package checks passed, but they did not verify the actual Home tile. The operator subsequently reported missing artwork. On the tested AFTMM / Fire OS 6 / API 25 device, Home showed a blank tile and the app grid retained the original placeholder despite the newer APK being installed.
+
+Version 0.1.14 ships only PNG launcher-icon variants, uses a new bitmap resource name, and explicitly declares the icon, label, and banner on the launcher activity. The application ID, signing certificate, encrypted-settings alias, and playback Java remain unchanged.
+
+Final host validation: all 61 unit/Robolectric tests passed; resource packaging and APK signature verification passed; lint reported zero errors and 19 warnings. Five IconLauncherShape warnings concern the deliberately opaque square TV bitmaps, and one RedundantLabel warning concerns the explicit activity label. The other 13 warnings are unchanged.
+
+Device validation confirmed the installed APK's SHA-256 matches the release and the encrypted settings file stayed byte-for-byte unchanged throughout the updates and registration refresh. The saved two-camera layout and software-H.264 Float preference remained selected. A separate read-only Package Manager probe loaded a BitmapDrawable from `res/mipmap-xhdpi-v4/ic_property_tracker.png` and rendered the new mark successfully.
+
+The icon remained stale in Fire TV's catalog after in-place installation and an initial restart. Opening **Appstore → App Library → Installed on this TV** displayed the new artwork; launching that entry and returning to Home made the new Home icon visible. The app grid still held the old thumbnail after another restart. A cache-only Appstore refresh and a brief disable/re-enable of Property Tracker were then performed. Final captured checks confirmed the new mark in both Home and **Your Apps & Channels**, with the original six-app order preserved. Appstore data and camera settings were not cleared, and Property Tracker was enabled at completion.
+
+These observations establish that Android could render the current icon while Fire TV retained older catalog artwork. They do not isolate the contribution of each bitmap/metadata/cache change. The tested refresh behavior is specific to this device; other Fire OS versions and NVIDIA Shield still need checks. No new sustained playback comparison was performed. The earlier 45-minute result belongs to 0.1.12.
+
 ## Remaining validation
 
 - Complete isolated foreground-service recovery and pending-restart cancellation on physical hardware.

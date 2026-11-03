@@ -6,7 +6,7 @@ Add-Type -AssemblyName System.Drawing
 $root = Split-Path -Parent $PSScriptRoot
 $assets = Join-Path $root 'assets/branding'
 $res = Join-Path $root 'app/src/main/res'
-New-Item -ItemType Directory -Force $assets, "$res/mipmap-anydpi", "$res/mipmap-anydpi-v26", "$res/drawable-mdpi", "$res/drawable-hdpi", "$res/drawable-xhdpi", "$res/drawable-xxhdpi", "$res/drawable-xxxhdpi" | Out-Null
+New-Item -ItemType Directory -Force $assets, "$res/mipmap-mdpi", "$res/mipmap-hdpi", "$res/mipmap-xhdpi", "$res/mipmap-xxhdpi", "$res/mipmap-xxxhdpi", "$res/drawable-mdpi", "$res/drawable-hdpi", "$res/drawable-xhdpi", "$res/drawable-xxhdpi", "$res/drawable-xxxhdpi" | Out-Null
 $culture = [Globalization.CultureInfo]::InvariantCulture
 $background = '#101516'
 $sage = '#CBE7AB'
@@ -73,23 +73,11 @@ function Svg-Layers($layers) {
         "<path fill=`"$fill`"$stroke d=`"$(Path-Data $layer.Path)`"/>"
     }
 }
-function Android-Layers($layers) {
-    foreach ($layer in $layers) {
-        $fill = if ($layer.Fill) { $layer.Fill } else { '#00000000' }
-        $stroke = if ($layer.Stroke) { " android:strokeColor=`"$($layer.Stroke)`" android:strokeWidth=`"$(Number $layer.Width)`" android:strokeLineCap=`"round`" android:strokeLineJoin=`"round`"" } else { '' }
-        "    <path android:fillColor=`"$fill`"$stroke android:pathData=`"$(Path-Data $layer.Path)`" />"
-    }
-}
 function Save([string]$path, [string]$content) { [IO.File]::WriteAllText($path, $content + "`n", [Text.UTF8Encoding]::new($false)) }
 $markSvg = (Svg-Layers $mark) -join "`n"
-$markAndroid = (Android-Layers $mark) -join "`n"
 $wordSvg = (Svg-Layers $words) -join "`n"
 Save "$assets/property-tracker-icon.svg" "<svg xmlns=`"http://www.w3.org/2000/svg`" width=`"512`" height=`"512`" viewBox=`"0 0 108 108`"><rect width=`"108`" height=`"108`" fill=`"$background`"/><g transform=`"translate(-13.5 -13.5) scale(1.25)`">$markSvg</g></svg>"
 Save "$assets/property-tracker-tv-banner.svg" "<svg xmlns=`"http://www.w3.org/2000/svg`" width=`"1280`" height=`"720`" viewBox=`"0 0 320 180`"><rect width=`"320`" height=`"180`" fill=`"$background`"/><g transform=`"translate(-10 9) scale(1.5)`">$markSvg</g>$wordSvg</svg>"
-Save "$res/drawable/property_tracker_foreground.xml" "<vector xmlns:android=`"http://schemas.android.com/apk/res/android`" android:width=`"108dp`" android:height=`"108dp`" android:viewportWidth=`"108`" android:viewportHeight=`"108`">`n$markAndroid`n</vector>"
-Save "$res/mipmap-anydpi/app_icon.xml" "<vector xmlns:android=`"http://schemas.android.com/apk/res/android`" android:width=`"80dp`" android:height=`"80dp`" android:viewportWidth=`"108`" android:viewportHeight=`"108`">`n    <path android:fillColor=`"$background`" android:pathData=`"M0,0 H108 V108 H0 Z`" />`n    <group android:translateX=`"-13.5`" android:translateY=`"-13.5`" android:scaleX=`"1.25`" android:scaleY=`"1.25`">`n$markAndroid`n    </group>`n</vector>"
-Save "$res/mipmap-anydpi-v26/app_icon.xml" "<adaptive-icon xmlns:android=`"http://schemas.android.com/apk/res/android`">`n    <background android:drawable=`"@color/launcher_background`" />`n    <foreground android:drawable=`"@drawable/property_tracker_foreground`" />`n    <monochrome android:drawable=`"@drawable/property_tracker_foreground`" />`n</adaptive-icon>"
-Save "$res/values/branding.xml" "<resources>`n    <color name=`"launcher_background`">$background</color>`n</resources>"
 
 function Draw-Layers($graphics, $layers) {
     foreach ($layer in $layers) {
@@ -122,6 +110,11 @@ function Preview([string]$name, [int]$width, [int]$height, [bool]$banner, [strin
 }
 Preview 'property-tracker-icon.png' 512 512 $false
 Preview 'property-tracker-tv-banner.png' 1280 720 $true
+Preview 'ic_property_tracker.png' 80 80 $false "$res/mipmap-mdpi"
+Preview 'ic_property_tracker.png' 120 120 $false "$res/mipmap-hdpi"
+Preview 'ic_property_tracker.png' 160 160 $false "$res/mipmap-xhdpi"
+Preview 'ic_property_tracker.png' 240 240 $false "$res/mipmap-xxhdpi"
+Preview 'ic_property_tracker.png' 320 320 $false "$res/mipmap-xxxhdpi"
 Preview 'tv_banner.png' 160 90 $true "$res/drawable-mdpi"
 Preview 'tv_banner.png' 240 135 $true "$res/drawable-hdpi"
 Preview 'tv_banner.png' 320 180 $true "$res/drawable-xhdpi"
@@ -129,4 +122,4 @@ Preview 'tv_banner.png' 480 270 $true "$res/drawable-xxhdpi"
 Preview 'tv_banner.png' 640 360 $true "$res/drawable-xxxhdpi"
 foreach ($layer in @($mark) + @($words)) { $layer.Path.Dispose() }
 $font.Dispose()
-Write-Output 'Generated native vector icons, adaptive icons, density-specific TV banners, SVG masters, and PNG previews.'
+Write-Output 'Generated PNG launcher icons, density-specific TV banners, SVG masters, and PNG previews.'

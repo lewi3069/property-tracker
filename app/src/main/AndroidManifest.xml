@@ -8,10 +8,11 @@
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <application android:allowBackup="false" android:label="@string/app_name"
-        android:icon="@mipmap/app_icon" android:banner="@drawable/tv_banner"
+        android:icon="@mipmap/ic_property_tracker" android:banner="@drawable/tv_banner"
         android:theme="@style/AppTheme" android:usesCleartextTraffic="true"
         android:supportsRtl="true">
         <activity android:name=".MainActivity" android:exported="true"
+            android:label="@string/app_name" android:icon="@mipmap/ic_property_tracker" android:banner="@drawable/tv_banner"
             android:screenOrientation="landscape">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
