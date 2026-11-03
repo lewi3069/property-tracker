@@ -1,0 +1,12 @@
+{
+  "name": "fieldview-camera-prototype",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Local prototype for a Fire TV camera viewer and automatic view selection.",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "engines": { "node": ">=20" }
+}

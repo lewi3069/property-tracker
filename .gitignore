@@ -1,0 +1,20 @@
+node_modules/
+.tools/
+.gradle/
+build/
+local.properties
+*.local.json
+*.log
+test-results/
+dist/*.apk
+*.keystore
+*.jks
+*.local.jsonl
+.env
+.env.*
+.idea/
+*.iml
+# Operator-specific network inventory and test handoff; keep these local.
+docs/RESUME.md
+docs/device-inventory.md
+docs/PLEX-TEST.md

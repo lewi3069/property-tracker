@@ -1,0 +1,71 @@
+# Property Tracker — native Android TV camera app
+
+Property Tracker is a native Android APK for Android-based Fire TV sticks and NVIDIA Shield. It uses an Android Activity, native TV controls, and Media3 video surfaces. Its original development name was Fieldview; the Android package ID (`com.fieldview.tv`), encrypted-settings alias, and MQTT topic prefix remain stable so existing installations keep their configuration.
+
+[Download Property Tracker 0.1.11](https://github.com/lewi3069/property-tracker/releases/tag/v0.1.11) or build it locally.
+
+## Build and install
+
+Open this directory in Android Studio with JDK 17 and Android SDK 35, or use the task-local Windows toolchain:
+
+```powershell
+.\scripts\bootstrap-android.ps1
+.\scripts\build-android.ps1
+```
+
+The bootstrap downloads official build tools into the ignored `.tools` directory and accepts their Android SDK build-tool licenses. JDK and Gradle archives are checksum-verified. No system-wide tool installation is needed. Build caches, debug signing key, and SDK stay in the project.
+
+The build creates `app/build/outputs/apk/debug/app-debug.apk`. A copy for installation is provided as `dist/property-tracker-0.1.11-debug.apk` after verification. This is a development APK signed with the same local debug key as earlier versions, so it can update the existing installation without clearing saved settings. A fresh bootstrap creates a new local signing key; updating an existing installation requires its original signing key or a matching signed release APK.
+
+Once ADB is paired with the target device:
+
+```powershell
+adb -s DEVICE_ADDRESS:5555 install -r .\dist\property-tracker-0.1.11-debug.apk
+adb -s DEVICE_ADDRESS:5555 shell am start -n com.fieldview.tv/.MainActivity
+```
+
+Use the device's normal developer/ADB pairing flow. The app targets Android 6.0/API 23 or later; the identified Fire TV 4K/Max models satisfy that baseline. Very old generic Fire TV sticks need their exact generation checked. Vega OS devices cannot run this Android APK.
+
+## Native controls
+
+- **Cameras:** the numbered list is the saved default viewing order. Choose an existing camera for **Edit camera**, **Copy camera**, **Move up**, or **Move down**. The move actions save immediately and return to the list at the moved camera; the new order controls the default grid after restart. Each device saves its own order.
+- **Copy camera:** opens an unsaved draft prefilled with the source's address, port, login, zone, and stream paths. It starts with a unique name and camera ID. Change the address/name as needed and choose **Save camera** to add it. **Cancel** leaves the source and catalog unchanged; the existing camera is never overwritten by a copy.
+- **Enable/disable:** select a camera under Cameras and choose **Disable camera** or **Enable camera**. The Edit camera form also has an **Enabled for live viewing** checkbox. Disabled entries keep their connection details and saved position, and are marked `(disabled)` in the catalog. They are excluded from the grid, fullscreen picker, and automatic activity/location selection. The setting persists on this installation, and copies retain the source's enabled state. Existing cameras remain enabled after upgrading.
+- **Add/edit:** enter the camera's local IP/hostname, RTSP port, login, and grid/main paths. Reolink and Amcrest presets fill common paths; paths remain editable for NVR channels and model differences. **Save camera** and **Cancel** stay in a fixed action bar below the scrolling fields. From the final field, remote Down or the keyboard's Done moves focus to Save camera. The app starts with no cameras or credentials configured.
+- **Layout:** choose the visible count and whether enlarged views use the main stream. The AFTMM Fire TV Stick 4K and Android devices reporting low RAM offer 1, 2, or 4 feeds; their saved and remote layout requests are limited to four before players start. Other devices retain the 1/2/4/6/9 choices, whose sustained capacity still needs testing. All saved cameras remain accessible through View regardless of the simultaneous-feed limit.
+- **View:** select any configured camera, including one outside the current grid, for fullscreen viewing. Fullscreen hides the app toolbar, footer, camera label, Live badge, and tile borders, and uses the full display while preserving the video's aspect ratio. Connection/error messages remain available when a stream is not playing.
+- **Float:** select one enabled camera to keep its silent grid stream in a small bottom-right window over other apps. In fullscreen, Menu → **Float camera** starts the current camera. Property Tracker releases its regular wall players before starting the floating stream. The floating window does not take remote focus, so the other app keeps its controls. The floating window omits the camera-name bar. Return to Property Tracker to close it, or use **Close camera** in its ongoing notification. Screen-off and task removal also stop the session. Android can restore an active session after process termination, using the same camera's current saved settings. Returning to the viewer cancels a pending restart. A restored session rechecks permission, camera enabled state, and whether the TV is awake. It does not start at boot.
+- **Auto:** activity takes priority over a stable horse location, then the ordinary overview. Up to two cameras can be enlarged, within the chosen tile limit. A one-camera layout stays at one camera.
+- **Grid:** keep the overview fixed while incoming events continue to be tracked.
+- **Remote OK:** pin the focused camera fullscreen. In fullscreen, **Down** selects the next enabled camera and **Up** selects the previous one in saved order, wrapping at either end. This browses all enabled cameras, including those outside the grid's tile count. Each press changes one camera; holding a direction does not repeatedly restart streams. **Back** restores the ordinary Auto view with the toolbar, footer, and grid spacing; Back from an unpinned view exits normally. **Menu** opens layout settings, where arrows retain normal menu navigation.
+- **Home Assistant:** configure the optional MQTT connection and site/screen IDs. No Home Assistant API token is required.
+
+Only visible cameras have player instances. Unchanged players are reused while tiles move. Hidden feeds and wall playback resources are released when leaving the app; an explicitly started floating view instead keeps just its one grid stream in a foreground service. Load-control allocation targets are 2 MiB per grid player and 8 MiB per enlarged player. They prioritize byte thresholds over time buffering, but do not cap all RTSP packet queues or native decoder/graphics memory; see [the code review](docs/CODE-REVIEW-2026-11-03.md). A released player is marked inactive before detaching it so callbacks cannot release it again. Each failed feed retries independently with a backoff up to 30 seconds. Audio is disabled. RTSP uses TCP transport. The initial TCP connection has a five-second deadline, and a twenty-second playback watchdog retries stalled buffering. A tile is marked Live only after the first video frame renders. Connection, login, and path failures show fixed explanatory text without exposing credential-bearing errors.
+
+Floating view requires Android's **display over other apps** permission. Some Fire TVs resolve the standard permission screen to a nonfunctional placeholder. On devices where the permission screen is unavailable, an authorized ADB connection can grant permission specifically to this application using `adb shell appops set com.fieldview.tv SYSTEM_ALERT_WINDOW allow`. It can be revoked with the corresponding `deny` operation. This is a custom overlay, separate from native Fire OS picture-in-picture. The service is not exported and receives only a camera ID; credentials are loaded from encrypted app-private settings, not passed through intents or notifications.
+
+Version 0.1.9 uses SurfaceView for floating playback, matching the normal viewer. The earlier TextureView window displayed green on a Fire TV Stick 4K (AFTMM); after the change, the user confirmed normal floating video. ADB video captures can still be misleading on this device, so first-frame callbacks or screenshots alone are not sufficient visual validation.
+
+Version 0.1.10 adds recovery after Android terminates the floating process, and lifecycle logs distinguish explicit stops from unexpected process loss. Android controls when resources are available for a restart, so recovery can include a visible interruption. This follows Android's [service restart behavior](https://developer.android.com/develop/background-work/services#ExtendingService).
+
+See [test results and scope](docs/testing.md) for the completed Plex comparison and the remaining hardware/recovery checks. The read-only monitor performs no app control or deliberate process termination.
+
+H.264 and H.265/HEVC RTSP streams are supported when their codec profile, resolution, and frame rate fit the device's decoder. Supported 3840 × 2160 HEVC feeds rendered on a Fire TV Stick 4K (AFTMM). Several wider/taller camera main streams exceeded that Firestick's advertised dimensions; those entries use lower-resolution streams for fullscreen. This is separate from bandwidth-related buffering. Native setup stores camera/broker credentials encrypted with an Android Keystore key in app-private storage, with Android backup disabled. Stream addresses and command payloads are not logged by the app; Media3 logging is disabled.
+
+## Home Assistant control
+
+Commands go to `fieldview/<site>/<screen>/command` on the configured broker. They affect the viewer while it is open; they do not wake the TV or launch over another app. See [the native MQTT contract and Home Assistant examples](docs/native-mqtt.md).
+
+Activity messages expire, are deduplicated, and cannot replay from retained MQTT messages. Horse locations need five seconds of stability and expire after a minute without a fresh observation. Temporary layout commands expire back to the screen's saved count. Manual fullscreen pinning takes precedence over automatic activity/location events.
+
+Configure cameras privately on each installation. MQTT delivery and real Home Assistant activity/location automations still need deployment testing.
+
+## Validation and current limits
+
+```powershell
+.\scripts\build-android.ps1
+```
+
+This runs JVM tests for catalog copying/order persistence, the native view selector/command router, connection/error handling, and Robolectric UI regression tests for form visibility, keyboard resizing, and Save-button focus, builds the APK, and runs Android lint. APK signature and package metadata are checked separately with the SDK tools. Playback, native remote navigation, camera copy/reordering/enabled state, and a 15-minute floating-camera/Plex comparison have been exercised on an AFTMM device. See [validation details](docs/testing.md). Other hardware, decoder capacity, MQTT connectivity, and longer sustained operation still need testing.
+
+The earlier browser layout experiment is preserved under `design-reference/browser-prototype`. It is not packaged into the Android app and is no longer the project entry point. The native implementation is under `app/src/main`.

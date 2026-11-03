@@ -1,0 +1,13 @@
+<resources>
+    <item name="form_title" type="id" />
+    <item name="form_scroll" type="id" />
+    <item name="form_actions" type="id" />
+    <item name="form_save" type="id" />
+    <item name="form_cancel" type="id" />
+    <item name="form_remove" type="id" />
+    <item name="viewer_root" type="id" />
+    <item name="viewer_toolbar" type="id" />
+    <item name="viewer_footer" type="id" />
+    <item name="camera_wall" type="id" />
+    <item name="floating_camera" type="id" />
+</resources>

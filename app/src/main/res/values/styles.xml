@@ -1,0 +1,19 @@
+<resources>
+    <style name="AppTheme" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">#CBE7AB</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowBackground">#101516</item>
+        <item name="android:windowFullscreen">true</item>
+    </style>
+    <style name="TvFormDialogTheme" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">#CBE7AB</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">false</item>
+        <item name="android:windowBackground">#101516</item>
+        <item name="android:windowSoftInputMode">adjustResize|stateAlwaysHidden</item>
+    </style>
+</resources>

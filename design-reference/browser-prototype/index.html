@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Fieldview · Android TV & Fire TV camera concept</title>
+  <link rel="stylesheet" href="/src/styles.css">
+  <script type="module" src="/src/app.mjs"></script>
+</head>
+<body>
+  <main class="workspace">
+    <div class="page-heading">
+      <div><p class="eyebrow">ANDROID TV & FIRE TV CAMERA APP</p><h1>Your property, at a glance.</h1></div>
+      <span class="prototype-label">INTERACTIVE CONCEPT</span>
+    </div>
+
+    <div class="prototype-layout">
+      <section class="tv" aria-label="Camera viewer prototype">
+        <header class="tv-header">
+          <div class="wordmark"><span class="brand-mark" aria-hidden="true">↗</span> fieldview<span class="wordmark-divider"></span><span id="display-name" class="property-name">OFFICE TV · SAMPLE</span></div>
+          <time id="clock"></time>
+        </header>
+        <div class="viewer-toolbar">
+          <div class="mode-buttons" aria-label="View mode">
+            <button type="button" id="auto-mode" aria-pressed="true"><span class="status-dot" aria-hidden="true"></span>Auto view</button>
+            <button type="button" id="grid-mode" aria-pressed="false">Grid view</button>
+          </div>
+          <span class="simulation-label">SIMULATION · NO CAMERAS CONNECTED</span>
+        </div>
+        <div id="camera-stage" class="camera-stage" data-layout="grid" aria-label="Illustrative camera views"></div>
+        <footer class="viewer-footer">
+          <div class="view-description"><span class="footer-icon" aria-hidden="true">◉</span><span id="view-description" role="status"></span><span id="countdown" class="countdown"></span></div>
+          <span class="remote-hint">↑ ↓ ← → Move <span>OK</span> Enlarge <span>ESC</span> Auto</span>
+        </footer>
+      </section>
+
+      <aside class="simulator" aria-labelledby="simulator-title">
+        <div class="simulator-heading"><span class="eyebrow">TRY THE BEHAVIOR</span><h2 id="simulator-title">A view that follows <br>what matters.</h2><p>Send a sample event and watch the TV layout respond.</p></div>
+        <fieldset class="display-settings"><legend><span class="step-number">01</span> Screen layout</legend>
+          <label for="display-profile">Sample screen</label><select id="display-profile"></select>
+          <label for="tile-count">Cameras visible</label><select id="tile-count"></select>
+          <p class="field-help profile-help">Each screen remembers its own count. Live playback limits need device testing.</p>
+        </fieldset>
+        <fieldset><legend><span class="step-number">02</span> Camera activity</legend><p class="field-help">Enlarge any camera for 30 seconds, including one outside the grid.</p><label for="activity-camera">Camera</label><select id="activity-camera"></select><button type="button" id="send-motion" class="primary-button">Send activity <span aria-hidden="true">↗</span></button></fieldset>
+        <fieldset><legend><span class="step-number">03</span> Horse location</legend><p class="field-help">A stable location selects its camera after 5 seconds.</p>
+          <label for="horse">Horse</label><select id="horse"><option value="horse-1">Horse 1</option><option value="horse-2">Horse 2</option></select>
+          <label for="zone">Location</label><select id="zone"><option value="unknown">Unknown / no signal</option value="barn">Barn</option><option value="yard">Yard</option><option value="pasture">West pasture</option><option value="gate">Gate</option></select>
+          <button type="button" id="send-location" class="primary-button">Send location <span aria-hidden="true">↗</span></button>
+          <p id="horse-status" class="horse-status" role="status">No horse locations set.</p>
+        </fieldset>
+        <button type="button" id="clear-events" class="reset-button">Clear sample events</button>
+        <p class="priority-note">Pinned view → activity → horse location → overview</p>
+      </aside>
+    </div>
+    <p class="concept-note">Illustrated camera views. This preview tests layout and switching; live video and Home Assistant connections come next.</p>
+  </main>
+</body>
+</html>
