@@ -37,7 +37,7 @@ import java.util.List;
 @UnstableApi
 public final class CameraTile extends FrameLayout {
     private final PlayerView surface;
-    private final TextView title, status;
+    private final TextView status;
     private final boolean floating;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private ExoPlayer player;
@@ -48,7 +48,7 @@ public final class CameraTile extends FrameLayout {
     private DefaultAllocator allocator;
     private long nextHealthLogAt;
     private int attempts, stalledRecoveries;
-    private boolean released, featured, firstFrame, fullscreen, softwareFloatingH264;
+    private boolean released, featured, firstFrame, fullscreen, fullscreenFocusBorder, softwareFloatingH264;
 
     public CameraTile(Context context, String name) {
         this(context, name, false);
@@ -65,11 +65,6 @@ public final class CameraTile extends FrameLayout {
         surface.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT);
         surface.setFocusable(false); surface.setDescendantFocusability(FOCUS_BLOCK_DESCENDANTS);
         addView(surface, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-        title = new TextView(context); title.setText(name); title.setTextColor(Color.WHITE);
-        title.setTextSize(14); title.setMaxLines(2); title.setPadding(dp(10), dp(6), dp(10), dp(6));
-        title.setBackgroundColor(0xB0000000);
-        title.setVisibility(floating ? View.GONE : View.VISIBLE);
-        addView(title, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.TOP));
         status = new TextView(context); status.setTextColor(0xFFE3EFDB); status.setTextSize(12);
         status.setMaxLines(3);
         status.setPadding(dp(10), dp(5), dp(10), dp(5)); status.setBackgroundColor(0xB0000000);
@@ -93,16 +88,20 @@ public final class CameraTile extends FrameLayout {
         };
     }
     public void setFullscreen(boolean value) {
-        if (fullscreen == value) return;
-        fullscreen = value;
-        title.setVisibility(value || floating ? View.GONE : View.VISIBLE);
-        setPadding(value ? 0 : dp(3), value ? 0 : dp(3), value ? 0 : dp(3), value ? 0 : dp(3));
+        setFullscreen(value, false);
+    }
+    /** Multi-camera fullscreen retains a visible remote-focus border. */
+    public void setFullscreen(boolean value, boolean focusBorder) {
+        if (fullscreen == value && fullscreenFocusBorder == focusBorder) return;
+        fullscreen = value; fullscreenFocusBorder = focusBorder;
+        int padding = value && !focusBorder ? 0 : dp(3);
+        setPadding(padding, padding, padding, padding);
         updateStatusVisibility(); updateBorder();
     }
     private void showStatus(String value) { status.setText(value); updateStatusVisibility(); }
     private void updateStatusVisibility() { status.setVisibility(fullscreen && "Live".contentEquals(status.getText()) ? View.GONE : View.VISIBLE); }
     private void updateBorder() {
-        if (fullscreen) { setBackgroundColor(Color.BLACK); return; }
+        if (fullscreen && !fullscreenFocusBorder) { setBackgroundColor(Color.BLACK); return; }
         GradientDrawable background = new GradientDrawable(); background.setColor(Color.BLACK);
         background.setStroke(dp(hasFocus() ? 3 : 1), hasFocus() ? 0xFFD9F2BD : featured ? 0xFF9BBF79 : 0xFF28322D);
         setBackground(background);

@@ -84,9 +84,10 @@ public class FloatingCameraServiceTest {
             assertFalse(service.view.isFocusable());
             PlayerView player = (PlayerView) service.view.getChildAt(0);
             assertTrue(player.getVideoSurfaceView() instanceof SurfaceView);
-            assertEquals(View.GONE, service.view.getChildAt(1).getVisibility());
+            assertEquals(2, service.view.getChildCount()); // Video and playback status; no camera-name bar.
+            assertEquals("Floating camera Test camera", service.view.getContentDescription());
             service.view.setFullscreen(true); service.view.setFullscreen(false);
-            assertEquals(View.GONE, service.view.getChildAt(1).getVisibility());
+            assertEquals(2, service.view.getChildCount());
             shadowOf(Looper.getMainLooper()).idle();
             assertTrue(service.view.isAttachedToWindow());
             FloatingCameraService.closeActive(service);

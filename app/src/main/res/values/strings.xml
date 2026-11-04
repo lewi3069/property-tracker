@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Property Tracker</string>
+    <string name="full_screen_layout">Full screen layout</string>
+    <string name="full_screen_layout_help">Fill the display with the selected layout. Press Back to restore controls. Select a camera to enlarge it; Back returns to the layout.</string>
 </resources>

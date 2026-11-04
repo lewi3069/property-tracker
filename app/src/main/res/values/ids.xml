@@ -9,5 +9,6 @@
     <item name="viewer_toolbar" type="id" />
     <item name="viewer_footer" type="id" />
     <item name="camera_wall" type="id" />
+    <item name="layout_fullscreen" type="id" />
     <item name="floating_camera" type="id" />
 </resources>

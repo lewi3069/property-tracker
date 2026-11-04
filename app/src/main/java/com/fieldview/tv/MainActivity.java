@@ -51,9 +51,11 @@ public final class MainActivity extends Activity {
     private CameraWall wall;
     private TextView footer, empty;
     private LinearLayout root, toolbar;
-    private Button autoButton, gridButton;
+    private Button autoButton, gridButton, layoutButton;
     private boolean foreground;
     private boolean fullscreen;
+    private boolean layoutFullscreen;
+    private String modeBeforePin = ViewSelector.AUTO;
     private boolean floatingTransition;
     private boolean setupOnly;
     private String pendingFloatingCamera;
@@ -74,6 +76,7 @@ public final class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        layoutFullscreen = state != null && state.getBoolean("layoutFullscreen", false);
         setupOnly = getIntent().getBooleanExtra(EXTRA_SETUP_ONLY, false);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         androidx.media3.common.util.Log.setLogLevel(androidx.media3.common.util.Log.LOG_LEVEL_OFF);
@@ -101,7 +104,7 @@ public final class MainActivity extends Activity {
         toolbar.addView(brand, new LinearLayout.LayoutParams(0, dp(48), 1));
         autoButton = button("Auto", () -> { setupOnly = false; selector.setMode(ViewSelector.AUTO, null); render(); }); toolbar.addView(autoButton);
         gridButton = button("Grid", () -> { setupOnly = false; selector.setMode(ViewSelector.GRID, null); render(); }); toolbar.addView(gridButton);
-        toolbar.addView(button("Layout", this::showLayout));
+        layoutButton = button("Layout", this::showLayout); toolbar.addView(layoutButton);
         toolbar.addView(button("View", this::showCameraPicker));
         toolbar.addView(button("Float", this::showFloatingCameraPicker));
         toolbar.addView(button("Cameras", this::showCameras));
@@ -138,8 +141,14 @@ public final class MainActivity extends Activity {
     }
     @Override public void onBackPressed() {
         if (selector != null && ViewSelector.PIN.equals(selector.snapshot(System.currentTimeMillis()).mode)) {
-            selector.setMode(ViewSelector.AUTO, null); render();
+            selector.setMode(modeBeforePin, null); render();
+        } else if (layoutFullscreen) {
+            layoutFullscreen = false; render(); layoutButton.requestFocus();
         } else super.onBackPressed();
+    }
+    @Override protected void onSaveInstanceState(Bundle state) {
+        state.putBoolean("layoutFullscreen", layoutFullscreen);
+        super.onSaveInstanceState(state);
     }
     @Override public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
@@ -171,6 +180,7 @@ public final class MainActivity extends Activity {
     @Override public boolean dispatchKeyEvent(KeyEvent event) {
         int code = event.getKeyCode();
         if (foreground && fullscreen && hasWindowFocus() && selector != null
+                && ViewSelector.PIN.equals(selector.snapshot(System.currentTimeMillis()).mode)
                 && (code == KeyEvent.KEYCODE_DPAD_UP || code == KeyEvent.KEYCODE_DPAD_DOWN)) {
             // One switch per press; holding a direction must not repeatedly restart decoders.
             if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0
@@ -201,7 +211,9 @@ public final class MainActivity extends Activity {
             return;
         }
         ViewSelector.Selection selection = selector.snapshot(System.currentTimeMillis());
-        setFullscreen(ViewSelector.PIN.equals(selection.mode));
+        boolean pinned = ViewSelector.PIN.equals(selection.mode);
+        if (!pinned) modeBeforePin = selection.mode;
+        setFullscreen(pinned || layoutFullscreen);
         empty.setVisibility(enabledCameras.isEmpty() ? View.VISIBLE : View.GONE);
         if (enabledCameras.isEmpty()) {
             String prompt = config.cameras.isEmpty()
@@ -219,7 +231,7 @@ public final class MainActivity extends Activity {
         if (disabled > 0) status += "  ·  " + disabled + " disabled";
         if (layoutOverrideUntil != 0) status += "  ·  temporary layout";
         if (!status.contentEquals(footer.getText())) footer.setText(status);
-        String nextSignature = selection.reason + selection.visible + selection.featured + config.useMainStream;
+        String nextSignature = selection.reason + selection.visible + selection.featured + config.useMainStream + fullscreen;
         if (signature.equals(nextSignature)) return;
         signature = nextSignature;
         String previouslyFocused = null;
@@ -239,7 +251,7 @@ public final class MainActivity extends Activity {
                 tiles.put(id, tile); wall.addView(tile);
             }
             boolean featured = selection.featured.contains(id);
-            tile.setFullscreen(fullscreen);
+            tile.setFullscreen(fullscreen, !pinned && selection.visible.size() > 1);
             tile.setFeatured(featured);
             tile.play(camera.streamUri(config.useMainStream && featured));
             ordered.add(tile);
@@ -281,6 +293,10 @@ public final class MainActivity extends Activity {
         Spinner count = spinner(choices);
         int index = 0; for (int i = 0; i < counts.length; i++) if (counts[i] == config.visibleCount) index = i;
         count.setSelection(index); fields.addView(label("Cameras visible on this screen", 14)); fields.addView(count);
+        CheckBox fullLayout = new CheckBox(this); fullLayout.setText(R.string.full_screen_layout);
+        fullLayout.setId(R.id.layout_fullscreen);
+        fullLayout.setChecked(layoutFullscreen); fields.addView(fullLayout);
+        fields.addView(label(getString(R.string.full_screen_layout_help), 13));
         CheckBox quality = new CheckBox(this); quality.setText("Use the main stream for enlarged cameras"); quality.setChecked(config.useMainStream); fields.addView(quality);
         CheckBox softwareFloat = new CheckBox(this); softwareFloat.setText("Prefer software H.264 for floating video");
         softwareFloat.setChecked(config.softwareFloatingH264); fields.addView(softwareFloat);
@@ -293,9 +309,13 @@ public final class MainActivity extends Activity {
                 .setPositiveButton("Save", (dialog, which) -> {
                     AppConfig next = copyConfig(); next.visibleCount = counts[count.getSelectedItemPosition()]; next.useMainStream = quality.isChecked();
                     next.softwareFloatingH264 = softwareFloat.isChecked();
-                    if (save(next)) { layoutOverrideUntil = 0; selector.setCapacity(config.visibleCount); render(); }
+                    if (save(next)) {
+                        layoutFullscreen = fullLayout.isChecked();
+                        if (layoutFullscreen) setupOnly = false;
+                        layoutOverrideUntil = 0; selector.setCapacity(config.visibleCount); render();
+                    }
                 });
-        if (fullscreen) {
+        if (ViewSelector.PIN.equals(selector.snapshot(System.currentTimeMillis()).mode)) {
             String id = selector.snapshot(System.currentTimeMillis()).visible.get(0);
             layoutDialog.setNeutralButton("Float camera", (ignored, which) -> startFloatingCamera(id));
         }

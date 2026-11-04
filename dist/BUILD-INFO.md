@@ -1,21 +1,22 @@
-# Property Tracker 0.1.14 native APK
+# Property Tracker 0.1.15 native APK
 
-- Application ID: `com.fieldview.tv`; label: Property Tracker; version code: 15
+- Application ID: `com.fieldview.tv`; label: Property Tracker; version code: 16
 - Minimum Android API: 23; target API: 35
-- APK: `property-tracker-0.1.14-debug.apk`
-- Maintained signing certificate; camera settings are preserved on update
-- PNG launcher icons at five densities, replacing runtime XML/adaptive alternatives
-- Explicit launcher activity artwork and label; matching TV banners and editable SVG masters
-- 61 tests passed; lint zero errors / 19 warnings, including five square-TV-icon shape warnings and one redundant-label warning
-- Installed APK digest verified; encrypted camera settings remained byte-for-byte unchanged
-- New artwork visually confirmed in Home and Your Apps & Channels on AFTMM / API 25 after Fire TV catalog refresh
-- Runtime playback Java unchanged from 0.1.12; no new sustained playback comparison
+- APK: `property-tracker-0.1.15-debug.apk` (6,391,627 bytes)
+- Maintained signing certificate and encrypted-settings identity for in-place upgrades
+- Camera-name bars removed in all views; names retained in pickers and accessibility labels
+- Layout includes Full screen layout: hide controls and fill the display with the selected camera layout
+- Remote focus remains visible in multi-camera layouts; pin/Back restores the prior Auto/Grid mode
+- Back restores controls without restarting unchanged players; existing device feed limits retained
+- 64 unit/Robolectric tests passed; lint zero errors / 19 existing warnings
+- APK signature, package identity, and version verified locally
+- Not installed or live-tested: operator requested that the TV's current screen be left alone
 
-Fire TV retained stale catalog thumbnails after an in-place update. The installed-app library showed the current artwork before Home/app-grid entries refreshed. See [the completed icon checks and refresh scope](../docs/testing.md#version-0114-fire-tv-icon-compatibility).
+See [validation scope](../docs/testing.md#version-0115-full-screen-camera-layouts). Host tests simulate video initialization; 9-tile geometry is not a nine-camera hardware capacity test. The earlier 45-minute playback comparison belongs to 0.1.12.
 
 APK SHA-256:
 
-`f9d1c61d4ccb722cf710e9ff4807b6cd9c885ed67de502f74c9f6bbc38c9c171`
+`b04df25324b7c39a82b001572cb84a9e27e82c633e08c9d9535ad1de296ed347`
 
 Signing certificate SHA-256:
 

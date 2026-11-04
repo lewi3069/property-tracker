@@ -103,6 +103,16 @@ The icon remained stale in Fire TV's catalog after in-place installation and an 
 
 These observations establish that Android could render the current icon while Fire TV retained older catalog artwork. They do not isolate the contribution of each bitmap/metadata/cache change. The tested refresh behavior is specific to this device; other Fire OS versions and NVIDIA Shield still need checks. No new sustained playback comparison was performed. The earlier 45-minute result belongs to 0.1.12.
 
+## Version 0.1.15 full-screen camera layouts
+
+Version 0.1.15 removes camera-name bars from ordinary grids as well as single-camera and floating views. Names remain available in the camera pickers and accessibility descriptions. **Layout → Full screen layout → Save** expands the current layout to the display, hiding the toolbar, footer, outer margins, and Live badges. Connection/error messages remain visible. Multi-camera layouts keep remote-focus borders and normal directional focus; pinned single-camera views retain Up/Down catalog browsing.
+
+Back from a pinned camera restores its previous Auto/Grid mode and full-screen layout state. Back from an unpinned full-screen layout restores controls without recreating unchanged players. Full-screen presentation does not increase the selected feed count or switch ordinary grid tiles to main streams. The full-screen choice lasts for the viewing session and is retained through Activity state restoration.
+
+Host validation on November 4, 2026: all 64 unit/Robolectric tests passed; lint reported zero errors and the existing 19 warnings. APK signature and package/version metadata were verified with the maintained signing certificate. The new behavior checks exercise 2-, 4-, and 9-camera placement across the full display, player reuse when restoring controls, pin/Back round trips, unconsumed grid-direction keys plus directional focus geometry, and the AFTMM four-camera limit. The tests replace video initialization and encrypted storage with local doubles; they do not open camera connections or demonstrate simultaneous decoder capacity. The existing floating-service test now checks the video/status-only child layout and retained camera accessibility description.
+
+No Fire TV connection, installation, remote navigation, or live playback test was performed for this update because the operator requested that the current TV screen be left alone. Physical-device remote navigation and playback transitions for this version remain to be checked. The earlier 45-minute comparison belongs to 0.1.12.
+
 ## Remaining validation
 
 - Complete isolated foreground-service recovery and pending-restart cancellation on physical hardware.
