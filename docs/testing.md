@@ -149,6 +149,14 @@ Three existing screen automations were updated for the owner's selected motion s
 
 A subsequent floating session used one camera as default while an actual Home Assistant motion sensor was on. With no manual MQTT injections during that run, the live automation selected the matching camera, then restored the default when motion cleared. Video frame counters advanced in both views and the floating window/surface remained the same. All three automation entities were enabled. Temporary native helpers were removed; the older stick was returned to sleep, and the other sleeping installation was left asleep. Older-device long-running playback and the third screen's live floating playback remain unverified.
 
+## Google Play candidate 0.2.1
+
+The phone release targets Android 16/API 36, with minimum API 26 and a separate production package `com.lewi3069.propertytracker`. The legacy phone debug and TV package identities are retained. A new upload key is protected locally, and the signed, non-debuggable Android App Bundle was verified with jarsigner, Google bundletool, and its actual release manifest. No native libraries, signing keys, or private camera-network addresses are packaged. The candidate receipt is under `store/play/release-candidate.json`.
+
+Java 21 enables the Android 16 Robolectric runtime. The regression run passed 87 TV/core cases and 12 phone cases in each of debug and release (111 executions). Phone additions cover notification denial without blocking/repeating the prompt, offline privacy display, and bundled license notices, alongside layout/navigation/restoration. Lint reported zero errors, with 29 TV debug and 39 phone debug/release warnings. Backup exclusions are explicit in the phone manifest and extraction rules. No physical phone/TV test or production Home Assistant change was performed for this candidate.
+
+The historical phone debug package is already registered to an unrelated app on Google Play. The new production identity was chosen before upload; actual reservation still requires the owner's Console. Play publication has not occurred: Google account terms, track choice, public support contact, reviewer access, and the applicable store declarations/materials remain to be completed. See `store/play/submission-notes.md`.
+
 ## Remaining validation
 
 - Complete isolated foreground-service recovery and pending-restart cancellation on physical hardware.

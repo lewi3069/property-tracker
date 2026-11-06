@@ -63,7 +63,9 @@ public final class MainActivity extends Activity {
     private boolean floatingTransition;
     private boolean setupOnly;
     private String pendingFloatingCamera;
+    private String pendingNotificationCamera;
     private static final int OVERLAY_PERMISSION_REQUEST = 41;
+    private static final int NOTIFICATION_PERMISSION_REQUEST = 42;
     private String signature = "", mqttState = "Home Assistant control not configured";
     private MqttBridge bridge;
     private CommandInbox inbox;
@@ -83,7 +85,7 @@ public final class MainActivity extends Activity {
         super.onCreate(state);
         layoutFullscreen = state != null && state.getBoolean("layoutFullscreen", false);
         setupOnly = getIntent().getBooleanExtra(EXTRA_SETUP_ONLY, false);
-        if (state != null) { setupOnly = state.getBoolean("setupOnly", setupOnly); pendingFloatingCamera = state.getString("pendingFloatingCamera"); }
+        if (state != null) { setupOnly = state.getBoolean("setupOnly", setupOnly); pendingFloatingCamera = state.getString("pendingFloatingCamera"); pendingNotificationCamera = state.getString("pendingNotificationCamera"); }
         if (!BuildConfig.TV_INTERFACE) getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         androidx.media3.common.util.Log.setLogLevel(androidx.media3.common.util.Log.LOG_LEVEL_OFF);
@@ -189,6 +191,7 @@ public final class MainActivity extends Activity {
     @Override protected void onSaveInstanceState(Bundle state) {
         state.putBoolean("layoutFullscreen", layoutFullscreen);
         state.putBoolean("setupOnly", setupOnly); state.putString("pendingFloatingCamera", pendingFloatingCamera);
+        state.putString("pendingNotificationCamera", pendingNotificationCamera);
         if (selector != null) {
             ViewSelector.Selection selection = selector.snapshot(System.currentTimeMillis());
             state.putString("viewerMode", selection.mode); state.putString("modeBeforePin", modeBeforePin);
@@ -238,7 +241,7 @@ public final class MainActivity extends Activity {
     }
     private void showPhoneMenu(View anchor) {
         PopupMenu menu = new PopupMenu(this, anchor);
-        String[] labels = {"Cameras", "Layout", "Float camera", "Home Assistant"};
+        String[] labels = {"Cameras", "Layout", "Float camera", "Home Assistant", "Privacy policy", "Open-source licenses"};
         for (int i = 0; i < labels.length; i++) menu.getMenu().add(0, i, i, labels[i]);
         menu.setOnMenuItemClickListener(item -> {
             switch (item.getItemId()) {
@@ -246,9 +249,26 @@ public final class MainActivity extends Activity {
                 case 1: showLayout(); break;
                 case 2: showFloatingCameraPicker(); break;
                 case 3: showMqtt(); break;
+                case 4: showPrivacy(); break;
+                case 5: showLicenses(); break;
             }
             return true;
         }); menu.show();
+    }
+    private void showPrivacy() {
+        showTextDocument("Privacy policy", "privacy.txt");
+    }
+    private void showLicenses() { showTextDocument("Open-source licenses", "third-party-notices.txt"); }
+    private void showTextDocument(String title, String asset) {
+        try (java.io.InputStream input = getAssets().open(asset)) {
+            java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+            byte[] buffer = new byte[4096]; int count;
+            while ((count = input.read(buffer)) != -1) bytes.write(buffer, 0, count);
+            TextView policy = label(new String(bytes.toByteArray(), java.nio.charset.StandardCharsets.UTF_8), 15);
+            policy.setPadding(dp(16), dp(12), dp(16), dp(12)); policy.setTextIsSelectable(true);
+            ScrollView scroll = new ScrollView(this); scroll.addView(policy);
+            new AlertDialog.Builder(this).setTitle(title).setView(scroll).setPositiveButton("Close", null).show();
+        } catch (java.io.IOException error) { toast("Document could not be opened."); }
     }
     @Override public boolean onKeyDown(int code, KeyEvent event) {
         if (code == KeyEvent.KEYCODE_MENU && config != null) { showLayout(); return true; }
@@ -487,6 +507,14 @@ public final class MainActivity extends Activity {
     }
 
     private void startFloatingCamera(String id) {
+        if (!BuildConfig.TV_INTERFACE && Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                && !getSharedPreferences("phone-ui", MODE_PRIVATE).getBoolean("notificationPrompted", false)) {
+            getSharedPreferences("phone-ui", MODE_PRIVATE).edit().putBoolean("notificationPrompted", true).apply();
+            pendingNotificationCamera = id;
+            requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, NOTIFICATION_PERMISSION_REQUEST);
+            return;
+        }
         if (!canDrawOverlays()) {
             new AlertDialog.Builder(this).setTitle("Allow floating camera")
                     .setMessage("Allow Property Tracker to display over other apps. One small camera window will stay visible; returning to Property Tracker closes it.")
@@ -526,6 +554,15 @@ public final class MainActivity extends Activity {
             String id = pendingFloatingCamera; pendingFloatingCamera = null;
             if (canDrawOverlays()) handler.post(() -> { if (foreground) startFloatingCamera(id); });
             else toast("Floating view needs permission to display over other apps.");
+        }
+    }
+
+    @Override public void onRequestPermissionsResult(int request, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(request, permissions, results);
+        if (request == NOTIFICATION_PERMISSION_REQUEST && pendingNotificationCamera != null) {
+            String id = pendingNotificationCamera; pendingNotificationCamera = null;
+            // A denied notification permission must not block viewing or repeatedly prompt.
+            handler.post(() -> { if (foreground && !isFinishing()) startFloatingCamera(id); });
         }
     }
 

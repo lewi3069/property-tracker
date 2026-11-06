@@ -2,13 +2,64 @@ plugins { id 'com.android.application' }
 apply from: rootProject.file('gradle/android-common.gradle')
 
 android {
+    compileSdk 36
     defaultConfig {
         applicationId 'com.fieldview.mobile'
         minSdk 26
+        targetSdk 36
         buildConfigField 'boolean', 'TV_INTERFACE', 'false'
+    }
+    def keyPath = providers.environmentVariable('PROPERTY_TRACKER_PLAY_KEYSTORE').orNull
+    if (keyPath) {
+        signingConfigs {
+            playUpload {
+                storeFile file(keyPath)
+                storePassword providers.environmentVariable('PROPERTY_TRACKER_PLAY_STORE_PASSWORD').orNull
+                keyAlias 'property-tracker-upload'
+                keyPassword providers.environmentVariable('PROPERTY_TRACKER_PLAY_KEY_PASSWORD').orNull
+            }
+        }
+        buildTypes.release.signingConfig = signingConfigs.playUpload
     }
     sourceSets.main {
         java.srcDirs = [rootProject.file('app/src/main/java')]
-        res.srcDirs = [rootProject.file('app/src/main/res')]
+        res.srcDirs = [rootProject.file('app/src/main/res'), file('src/main/res')]
+    }
+}
+
+androidComponents {
+    onVariants(selector().withBuildType('release')) { variant ->
+        variant.applicationId.set('com.lewi3069.propertytracker')
+    }
+}
+
+tasks.register('validatePlayBundle', JavaExec) {
+    mustRunAfter 'bundleRelease'
+    classpath = rootProject.buildscript.configurations.classpath
+    mainClass = 'com.android.tools.build.bundletool.BundleToolMain'
+    args 'validate', "--bundle=${layout.buildDirectory.file('outputs/bundle/release/mobile-release.aab').get().asFile}"
+}
+tasks.register('dumpPlayManifest', JavaExec) {
+    mustRunAfter 'bundleRelease'
+    classpath = rootProject.buildscript.configurations.classpath
+    mainClass = 'com.android.tools.build.bundletool.BundleToolMain'
+    args 'dump', 'manifest', "--bundle=${layout.buildDirectory.file('outputs/bundle/release/mobile-release.aab').get().asFile}", '--module=base'
+    def capturedManifest = new ByteArrayOutputStream()
+    standardOutput = capturedManifest
+    doLast {
+        def manifestFile = layout.buildDirectory.file('reports/play/manifest.xml').get().asFile
+        manifestFile.parentFile.mkdirs()
+        manifestFile.setText(capturedManifest.toString('UTF-8'), 'UTF-8')
+        println "Release manifest: ${manifestFile}"
+    }
+}
+
+tasks.matching { it.name == 'bundleRelease' || it.name == 'packageRelease' }.configureEach {
+    doFirst {
+        if (!providers.environmentVariable('PROPERTY_TRACKER_PLAY_KEYSTORE').isPresent()
+                || !providers.environmentVariable('PROPERTY_TRACKER_PLAY_STORE_PASSWORD').isPresent()
+                || !providers.environmentVariable('PROPERTY_TRACKER_PLAY_KEY_PASSWORD').isPresent()) {
+            throw new GradleException('Release signing is required. Use scripts/build-play-release.ps1; never use the debug key for Google Play.')
+        }
     }
 }

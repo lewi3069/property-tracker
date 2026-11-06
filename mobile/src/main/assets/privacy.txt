@@ -1,0 +1,31 @@
+Property Tracker Privacy Policy
+Effective November 6, 2026
+
+About the app
+Property Tracker is a native viewer for cameras and an optional MQTT broker that you configure. The project is maintained at https://github.com/lewi3069/property-tracker . The app does not require an account with the app developer.
+
+Your configuration and video
+Camera addresses, stream paths, usernames, passwords, names, viewing preferences, and optional MQTT settings are stored in the app's private storage. Saved camera and MQTT configuration is encrypted using a key protected by Android Keystore. The app does not record video or audio to files. Live video and received control events are processed in memory for playback and view selection.
+
+Connections you choose
+The app connects directly to the cameras and MQTT broker you configure. It sends the connection and authentication information needed by those services and receives their video or control messages. Those servers and their operators may keep their own connection logs or recordings. The app developer does not operate a video or MQTT backend and does not receive your camera footage, configuration, or broker messages through this app.
+
+Network security
+RTSP camera connections use TCP and are not necessarily encrypted. MQTT can use ordinary TCP or TLS when an ssl:// broker is configured, with normal certificate validation. Use networks and endpoints that you trust, such as your local network or a VPN. Encryption of saved configuration is separate from encryption of network traffic.
+
+Analytics, advertising, and device data
+This release includes no advertising, analytics, or remote crash-reporting service. It does not request access to your contacts, the phone's camera or microphone, or the phone's location. Camera names, zone names, and activity information come from your own configuration or configured services. The app does not sell that information.
+
+Permissions and floating playback
+Network permissions support camera playback and optional MQTT control. Display-over-other-apps permission is requested only when you choose a floating camera. A foreground media playback service keeps that user-started video visible while another app is open. Notification permission allows its ongoing playback controls to appear; declining notifications does not prevent ordinary viewing. Returning to Property Tracker, closing the session, or turning the screen off stops floating playback. There is no boot or automatic TV/phone wake listener.
+
+Retention and removal
+Your configuration stays on your device until you change or remove it. Remove a camera in its edit form, or clear optional broker settings in Home Assistant settings. Android's app storage controls or uninstalling the app remove the app's stored data. This release disables Android cloud backup and supplies exclusions for device transfers. It does not delete recordings or logs retained by your cameras, broker, or their operators. The developer cannot recover configuration that was not separately preserved by you.
+
+External services and support
+Opening a project or support website uses your browser. The website operator, including GitHub, may receive ordinary web request information under its own privacy policy. Google Play and Android may handle installation and platform data under Google's policies independently of this app.
+
+For privacy questions or support, use https://github.com/lewi3069/property-tracker/issues . Public issues are visible to others; include only information you want to make public. Do not post camera passwords, private stream URLs, or private footage there.
+
+Changes
+If the app's data handling changes, this policy will be updated with a new effective date. This policy describes the current app's behavior, not the policies of your cameras, MQTT services, websites, or network provider.

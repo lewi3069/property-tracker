@@ -18,14 +18,17 @@ Version 0.1.19 lets Home Assistant control an existing floating view: the select
 
 ## Build and install
 
-Open this directory in Android Studio with JDK 17 and Android SDK 35, or use the task-local Windows toolchain:
+Use JDK 21 and Android SDK 35/36 for the full build and test suite. TV retains its older-device support; the phone Play candidate targets Android 16. The task-local Windows toolchain is:
 
 ```powershell
 .\scripts\bootstrap-android.ps1
+.\scripts\bootstrap-play-tools.ps1
 .\scripts\build-android.ps1
 ```
 
 The bootstrap downloads official build tools into the ignored `.tools` directory and accepts their Android SDK build-tool licenses. JDK and Gradle archives are checksum-verified. No system-wide tool installation is needed. Build caches, debug signing key, and SDK stay in the project.
+
+Google Play preparation is documented in [the submission notes](store/play/submission-notes.md). The signed 0.2.1 Play candidate uses `com.lewi3069.propertytracker`; the historical debug phone ID is already occupied by another app on Google Play. Play Console setup and distribution choices are still pending. The current downloadable GitHub APK release remains 0.2.0.
 
 The build creates `app/build/outputs/apk/debug/app-debug.apk` for TV and `mobile/build/outputs/apk/debug/mobile-debug.apk` for phones. A copy for installation is provided as `dist/property-tracker-0.2.0-debug.apk` after verification. This is a development APK signed with the same local debug key as earlier versions, so it can update the existing installation without clearing saved settings. A fresh bootstrap creates a new local signing key; updating an existing installation requires its original signing key or a matching signed release APK.
 

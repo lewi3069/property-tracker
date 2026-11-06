@@ -7,8 +7,12 @@ local.properties
 *.log
 test-results/
 dist/*.apk
+dist/*.aab
 *.keystore
 *.jks
+*.p12
+*.pfx
+*.dpapi
 *.local.jsonl
 .env
 .env.*

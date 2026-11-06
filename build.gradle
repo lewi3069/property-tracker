@@ -1,5 +1,11 @@
 plugins {
-    id 'com.android.application' version '8.9.2' apply false
+    id 'com.android.application' version '8.10.1' apply false
 }
-ext.propertyTrackerVersion = '0.2.0'
-ext.propertyTrackerVersionCode = 21
+ext.propertyTrackerVersion = '0.2.1'
+ext.propertyTrackerVersionCode = 22
+
+subprojects {
+    if (providers.gradleProperty('propertyTrackerBuildRoot').isPresent()) {
+        layout.buildDirectory.set(new File(providers.gradleProperty('propertyTrackerBuildRoot').get(), project.name))
+    }
+}

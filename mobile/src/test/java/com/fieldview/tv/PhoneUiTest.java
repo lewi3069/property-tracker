@@ -15,7 +15,7 @@ import org.robolectric.android.controller.ActivityController;
 import static org.junit.Assert.*;
 
 @RunWith(RobolectricTestRunner.class)
-@Config(sdk=35, instrumentedPackages="com.fieldview.tv", shadows={PhoneUiTest.Memory.class,PhoneUiTest.NoVideo.class})
+@Config(sdk={35,36}, instrumentedPackages="com.fieldview.tv", shadows={PhoneUiTest.Memory.class,PhoneUiTest.NoVideo.class})
 public class PhoneUiTest {
     @Implements(value=ConfigStore.class,isInAndroidSdk=false) public static class Memory {
         static AppConfig config;
@@ -50,6 +50,48 @@ public class PhoneUiTest {
             selected=(ViewSelector)field(MainActivity.class,"selector").get(a);assertEquals(ViewSelector.PIN,selected.snapshot(System.currentTimeMillis()).mode);
             assertEquals("camera-1",selected.snapshot(System.currentTimeMillis()).visible.get(0));a.onBackPressed();assertFalse(a.isFinishing());
         }finally{c.pause().stop().destroy();}
+    }
+    @Test public void deniedNotificationPermissionContinuesToOverlayChoiceWithoutRepeatedPrompt() throws Exception {
+        ActivityController<MainActivity> controller=open();
+        try {
+            MainActivity activity=controller.get();
+            Method start=MainActivity.class.getDeclaredMethod("startFloatingCamera",String.class);start.setAccessible(true);start.invoke(activity,"camera-0");
+            assertEquals("camera-0",field(MainActivity.class,"pendingNotificationCamera").get(activity));
+            activity.onRequestPermissionsResult(42,new String[]{android.Manifest.permission.POST_NOTIFICATIONS},new int[]{android.content.pm.PackageManager.PERMISSION_DENIED});
+            org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+            assertNull(field(MainActivity.class,"pendingNotificationCamera").get(activity));
+            assertTrue(activity.getSharedPreferences("phone-ui",0).getBoolean("notificationPrompted",false));
+            android.app.AlertDialog dialog=org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
+            assertTrue(dialog.isShowing());dialog.dismiss();start.invoke(activity,"camera-0");
+            assertNull(field(MainActivity.class,"pendingNotificationCamera").get(activity));
+            org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog().dismiss();
+        } finally {controller.pause().stop().destroy();}
+    }
+    @Test public void privacyPolicyIsBundledAndReadableWithoutAConfiguredCamera() throws Exception {
+        ActivityController<MainActivity> controller=open();
+        try {
+            MainActivity activity=controller.get(); invoke(activity,"showPrivacy");
+            android.app.AlertDialog dialog=org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
+            String text=allText(dialog.findViewById(android.R.id.custom));
+            assertTrue(text.contains("Property Tracker Privacy Policy")); assertTrue(text.contains("Connections you choose"));
+            assertTrue(text.contains("not necessarily encrypted")); dialog.dismiss();
+        } finally {controller.pause().stop().destroy();}
+    }
+    @Test public void openSourceNoticesAreIncludedAndReadableOffline() throws Exception {
+        ActivityController<MainActivity> controller=open();
+        try {
+            MainActivity activity=controller.get(); invoke(activity,"showLicenses");
+            android.app.AlertDialog dialog=org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
+            String text=allText(dialog.findViewById(android.R.id.custom));
+            assertTrue(text.contains("Apache License")); assertTrue(text.contains("Eclipse Distribution License"));
+            assertTrue(text.contains("Classpath")); dialog.dismiss();
+        } finally {controller.pause().stop().destroy();}
+    }
+    private String allText(View view) {
+        if(view instanceof android.widget.TextView)return ((android.widget.TextView)view).getText().toString();
+        StringBuilder text=new StringBuilder();
+        if(view instanceof android.view.ViewGroup){android.view.ViewGroup group=(android.view.ViewGroup)view;for(int i=0;i<group.getChildCount();i++)text.append(allText(group.getChildAt(i)));}
+        return text.toString();
     }
     @Test public void editButtonsFitNarrowScreenWithRemoveVisible(){
         ActivityController<MainActivity> c=open();TvFormDialog dialog=null;try{

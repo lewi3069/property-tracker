@@ -1,0 +1,36 @@
+{
+  "status": "Prepared locally; not uploaded or published on Google Play",
+  "application_id": "com.lewi3069.propertytracker",
+  "version_name": "0.2.1",
+  "version_code": 22,
+  "minimum_api": 26,
+  "target_api": 36,
+  "debuggable": false,
+  "bundle": "property-tracker-phone-0.2.1-release.aab",
+  "bytes": 4280743,
+  "sha256": "0a1dd4c23c0a8e53cbc95cf33ae1e128aa11f7e945ce8439d7c8d700c6b8a381",
+  "upload_certificate_sha256": "1a0b25853ab305258afb0f42889675c6e51248a5d982fa3902f925558394247a",
+  "test_executions": {
+    "app_debug": 87,
+    "mobile_debug": 12,
+    "mobile_release": 12
+  },
+  "lint": {
+    "app_debug": {
+      "errors": 0,
+      "warnings": 29
+    },
+    "mobile_debug": {
+      "errors": 0,
+      "warnings": 39
+    },
+    "mobile_release": {
+      "errors": 0,
+      "warnings": 39
+    }
+  },
+  "privacy_source": "mobile/src/main/assets/privacy.txt",
+  "privacy_html": "docs/privacy.html",
+  "physical_phone_tested": false,
+  "console_blocker": "Owner must review and accept the Console terms; track and public support email remain undecided."
+}

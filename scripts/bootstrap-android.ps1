@@ -44,7 +44,7 @@ $env:ANDROID_USER_HOME = Join-Path $toolRoot 'android-user'
 $sdkManager = Join-Path $sdkRoot 'cmdline-tools\bin\sdkmanager.bat'
 # SDK package licenses are accepted for this task-local Android build toolchain.
 1..100 | ForEach-Object { 'y' } | & $sdkManager "--sdk_root=$sdkRoot" --licenses | Out-Null
-& $sdkManager "--sdk_root=$sdkRoot" 'platforms;android-35' 'build-tools;35.0.0' 'platform-tools'
+& $sdkManager "--sdk_root=$sdkRoot" 'platforms;android-35' 'platforms;android-36' 'build-tools;35.0.0' 'build-tools;36.0.0' 'platform-tools'
 if ($LASTEXITCODE -ne 0) { throw 'Android SDK setup failed' }
 
 $debugKey = Join-Path $toolRoot 'debug.keystore'

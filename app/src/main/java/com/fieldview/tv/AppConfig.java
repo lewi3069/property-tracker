@@ -13,7 +13,7 @@ public final class AppConfig {
     public int visibleCount = 4;
     public boolean useMainStream = true;
     public boolean softwareFloatingH264;
-    public String site = "wrenhaven", display = BuildConfig.TV_INTERFACE ? "tv" : "phone", broker = "", brokerUser = "", brokerPassword = "";
+    public String site = BuildConfig.TV_INTERFACE ? "wrenhaven" : "home", display = BuildConfig.TV_INTERFACE ? "tv" : "phone", broker = "", brokerUser = "", brokerPassword = "";
     public String clientId = "fieldview-" + UUID.randomUUID().toString();
 
     /** A prefilled draft only: the catalog is unchanged until the user saves it. */
@@ -69,8 +69,8 @@ public final class AppConfig {
         config.visibleCount = Math.max(1, Math.min(9, object.optInt("visibleCount", 4)));
         config.useMainStream = object.optBoolean("useMainStream", true);
         config.softwareFloatingH264 = object.optBoolean("softwareFloatingH264", false);
-        config.site = object.optString("site", "wrenhaven");
-        config.display = object.optString("display", "tv");
+        config.site = object.optString("site", config.site);
+        config.display = object.optString("display", config.display);
         config.broker = object.optString("broker", "");
         config.brokerUser = object.optString("brokerUser", "");
         config.brokerPassword = object.optString("brokerPassword", "");
