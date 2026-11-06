@@ -137,12 +137,24 @@ The API 22 and API 25 installations were configured with the existing app-specif
 
 One sleeping screen authenticated then disconnected with its stopped Activity. It was briefly woken to complete the foreground test and returned to its original sleep state. MQTT remains foreground-only; the saved connection does not add background or floating-service control. No broker restart or new motion/location automation was required. All 216 active solar MQTT entities remained available with known states.
 
+## Version 0.1.19 floating-view MQTT and motion
+
+The floating service now owns an MQTT listener while its user-started session runs. The selected camera is the default; activity temporarily switches to another camera, and clear or expiry restores the default when no other activity remains. Competing motion waits while the current override remains active. Fresh heartbeats update expiry without restarting an unchanged player. Explicit MQTT commands select a new session default or close the window. Layout and horse-location commands retain their main-viewer scope. No TV wake, boot listener, or stopped-overlay opening was added.
+
+All 81 unit/Robolectric tests passed; lint reported zero errors and the existing 27 warnings. New checks cover motion clear/expiry, concurrent activity, heartbeat stability, disabled/unknown cameras, duplicate/retained/stale commands, default selection, redelivery, late callbacks, and session closure. Service tests verify reuse of the same CameraTile and SurfaceView and separation of the viewer/service MQTT client identities. APK v1/v2 signatures and package/version/minimum API were verified with the maintained certificate.
+
+The APK was installed in place on three Fire TVs; encrypted settings were byte-for-byte unchanged. On AFTMM/API 25 and AFTT/API 22, Home Assistant MQTT commands switched real H.264 grid streams, restored defaults, and closed the session. Native observation recorded first-frame callbacks and advancing rendered-buffer counters while retaining the same tile and SurfaceView. On AFTMM, a new remotely selected default was restored after an activity timeout. On AFTT, motion-clear returned to the default before the command's timeout. This is a short functional check; decoder counters do not establish physical-TV picture quality or renewed Plex stability.
+
+Three existing screen automations were updated for the owner's selected motion sources. On/clear messages and ten-second continuing-motion refreshes use non-retained QoS 1 commands with thirty-second expiry. Native Core configuration validation passed. Only these three automation IDs were reloaded; the existing PTZ focus loop remained running with its original trigger time. The other 34 YAML automation rows were preserved byte-for-byte, and active MQTT entities had no unavailable/unknown states afterward. No broker restart was needed.
+
+A subsequent floating session used one camera as default while an actual Home Assistant motion sensor was on. With no manual MQTT injections during that run, the live automation selected the matching camera, then restored the default when motion cleared. Video frame counters advanced in both views and the floating window/surface remained the same. All three automation entities were enabled. Temporary native helpers were removed; the older stick was returned to sleep, and the other sleeping installation was left asleep. Older-device long-running playback and the third screen's live floating playback remain unverified.
+
 ## Remaining validation
 
 - Complete isolated foreground-service recovery and pending-restart cancellation on physical hardware.
 - Longer Plex coexistence sessions, HEVC/high-resolution Plex, and other streaming apps.
 - Additional Fire TV models and NVIDIA Shield.
-- Camera-activity and horse-location automations, MQTT control during Float, TLS, and topic-restricted broker permissions.
+- Broader camera-activity coverage, horse-location automations, TLS, and topic-restricted broker permissions.
 - Resolution-aware stream budgets and RTSP backlog behavior under sustained decoder/network pressure.
 
 ADB video captures can be green even when the physical TV picture is normal on the tested device. A first-frame callback or screenshot alone is insufficient visual confirmation.

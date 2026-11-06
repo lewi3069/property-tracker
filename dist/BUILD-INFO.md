@@ -1,21 +1,22 @@
-# Property Tracker 0.1.18 native APK
+# Property Tracker 0.1.19 native APK
 
-- Application ID: `com.fieldview.tv`; label: Property Tracker; version code: 19
+- Application ID: `com.fieldview.tv`; label: Property Tracker; version code: 20
 - Minimum Android API: 22; target API: 35
-- APK: `property-tracker-0.1.18-debug.apk` (6,729,174 bytes)
+- APK: `property-tracker-0.1.19-debug.apk` (6,796,497 bytes)
 - Maintained signing certificate and encrypted-settings identity for in-place updates
-- Android 5.1 compatibility: Keystore RSA-wrapped AES settings key, authenticated AES-GCM envelope, guarded newer APIs
-- AFTT capped at two feeds; native encrypted-settings persistence and seven individual grid streams verified on API 22 and API 25
-- Selected house-camera/pine/dog/horse artwork and rectangular icon/banner resources
-- Fire TV Home stale/placeholder artwork remains unresolved on the existing installation
-- 70 tests passed; lint zero errors / 27 warnings; APK v1/v2 signature verified
-- No new sustained playback or Plex coexistence comparison; the earlier 45-minute comparison belongs to 0.1.12
+- MQTT controls an existing floating session: motion override, motion clear, timeout fallback, select default, close
+- Reuses one floating window/SurfaceView and preserves silent grid-stream/software-H.264 preferences
+- 81 unit/Robolectric tests passed; lint zero errors / 27 warnings; APK v1/v2 signature verified
+- Installed on three Fire TVs with encrypted settings unchanged; live MQTT and advancing H.264 video observed on AFTT/API 22 and AFTMM/API 25
+- A real Home Assistant motion-on/clear cycle switched an AFTMM floating view away from and back to its selected default
+- No new sustained Plex comparison or physical-TV visual confirmation; previous HEVC/Plex freezes and stale Home artwork remain known limitations
+- Does not wake the TV, launch the app, or open a stopped floating session
 
-See [validation scope and known limits](../docs/testing.md#version-0118-older-fire-tv-support-and-artwork).
+See [validation scope and known limits](../docs/testing.md#version-0119-floating-view-mqtt-and-motion).
 
 APK SHA-256:
 
-`f3e8ba31f36303564b4c5ad01db98b7bf9a27ed1a43671d9c0b871260ade4ecc`
+`3ccc25c3743c93b32c5697c1442cd46c09553fcbbcc92a2e7e1e9791f53586e6`
 
 Signing certificate SHA-256:
 

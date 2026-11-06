@@ -10,7 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/** Foreground-only MQTT connection; it never needs a Home Assistant API token. */
+/** A viewer/foreground-service-owned connection; no Home Assistant API token is needed. */
 public final class MqttBridge {
     public interface Listener {
         void status(String value);

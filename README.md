@@ -4,7 +4,7 @@
 
 Property Tracker is a native Android APK for Android-based Fire TV sticks and NVIDIA Shield. It uses an Android Activity, native TV controls, and Media3 video surfaces. Its original development name was Fieldview; the Android package ID (`com.fieldview.tv`), encrypted-settings alias, and MQTT topic prefix remain stable so existing installations keep their configuration.
 
-[Download Property Tracker 0.1.18](https://github.com/lewi3069/property-tracker/releases/tag/v0.1.18) or build it locally.
+[Download Property Tracker 0.1.19](https://github.com/lewi3069/property-tracker/releases/tag/v0.1.19) or build it locally.
 
 **Playback compatibility:** earlier HEVC floating-camera/Plex sessions froze on an AFTMM Fire TV Stick. Version 0.1.12 adds stall recovery and an optional software H.264 compatibility mode. One 45-minute comparison with a 640 × 480 software-decoded H.264 camera and hardware-H.264 Plex completed successfully. See [the test results and limits](docs/testing.md#later-freeze-and-0112-compatibility-trial).
 
@@ -13,6 +13,8 @@ Version 0.1.14 supplies PNG launcher icons and a matching TV banner at five dens
 Version 0.1.15 removes camera-name bars in every view and adds **Layout → Full screen layout → Save**. The selected multi-camera layout fills the display with the app controls hidden. Remote focus remains visible; select a camera to enlarge it, then press Back to return to the same Auto/Grid layout. Back again restores the controls. This full-screen choice lasts for the current viewing session.
 
 Version 0.1.18 adopts option B: a small camera on the house with a pine tree, dog, and horse, plus a rectangular TV tile. It also supports Android 5.1/API 22: older AFTT sticks use a two-camera budget and encrypted settings protected by a Keystore RSA-wrapped AES key. Newer installations retain their existing AES Keystore identity. Fire TV Home can still show stale or missing artwork on existing installations; the updated PNG resources and explicit launcher metadata do not yet establish a Home-cache fix. See [validation and limits](docs/testing.md#version-0118-older-fire-tv-support-and-artwork).
+
+Version 0.1.19 lets Home Assistant control an existing floating view: the selected camera is its default, motion temporarily switches cameras, and no motion restores the default. It preserves the silent single-grid-stream window and software H.264 compatibility preference.
 
 ## Build and install
 
@@ -25,16 +27,16 @@ Open this directory in Android Studio with JDK 17 and Android SDK 35, or use the
 
 The bootstrap downloads official build tools into the ignored `.tools` directory and accepts their Android SDK build-tool licenses. JDK and Gradle archives are checksum-verified. No system-wide tool installation is needed. Build caches, debug signing key, and SDK stay in the project.
 
-The build creates `app/build/outputs/apk/debug/app-debug.apk`. A copy for installation is provided as `dist/property-tracker-0.1.18-debug.apk` after verification. This is a development APK signed with the same local debug key as earlier versions, so it can update the existing installation without clearing saved settings. A fresh bootstrap creates a new local signing key; updating an existing installation requires its original signing key or a matching signed release APK.
+The build creates `app/build/outputs/apk/debug/app-debug.apk`. A copy for installation is provided as `dist/property-tracker-0.1.19-debug.apk` after verification. This is a development APK signed with the same local debug key as earlier versions, so it can update the existing installation without clearing saved settings. A fresh bootstrap creates a new local signing key; updating an existing installation requires its original signing key or a matching signed release APK.
 
 Once ADB is paired with the target device:
 
 ```powershell
-adb -s DEVICE_ADDRESS:5555 install -r .\dist\property-tracker-0.1.18-debug.apk
+adb -s DEVICE_ADDRESS:5555 install -r .\dist\property-tracker-0.1.19-debug.apk
 adb -s DEVICE_ADDRESS:5555 shell am start -n com.fieldview.tv/.MainActivity
 ```
 
-Use the device's normal developer/ADB pairing flow. The app targets Android 6.0/API 23 or later; the identified Fire TV 4K/Max models satisfy that baseline. Very old generic Fire TV sticks need their exact generation checked. Vega OS devices cannot run this Android APK.
+Use the device's normal developer/ADB pairing flow. The app supports Android 5.1/API 22 or later, including the older AFTT Fire TV Stick with a two-feed limit. Vega OS devices cannot run this Android APK.
 
 ## Native controls
 
@@ -65,11 +67,11 @@ H.264 and H.265/HEVC RTSP streams are supported when their codec profile, resolu
 
 ## Home Assistant control
 
-Commands go to `fieldview/<site>/<screen>/command` on the configured broker. They affect the viewer while it is open; they do not wake the TV or launch over another app. See [the native MQTT contract and Home Assistant examples](docs/native-mqtt.md).
+Commands go to `fieldview/<site>/<screen>/command` on the configured broker. They affect the open main viewer or an already running floating session; they do not wake the TV or start a floating window. See [the native MQTT contract and Home Assistant examples](docs/native-mqtt.md).
 
 Activity messages expire, are deduplicated, and cannot replay from retained MQTT messages. Horse locations need five seconds of stability and expire after a minute without a fresh observation. Temporary layout commands expire back to the screen's saved count. Manual fullscreen pinning takes precedence over automatic activity/location events.
 
-Configure cameras privately on each installation. Home Assistant MQTT delivery and automatic expiry back to the saved layout were verified on an AFTMM installation on November 5, 2026. Camera-activity and horse-location automations still need deployment testing. MQTT control currently operates in the main viewer, not the floating-camera service.
+Configure cameras privately on each installation. Home Assistant MQTT delivery and automatic expiry back to the saved layout were verified on an AFTMM installation on November 5, 2026. Version 0.1.19 adds MQTT control to the floating service. Its selected camera is the session default. Motion temporarily switches the stream, then motion-clear or expiry restores the default. Heartbeats keep an active camera playing without recreating its player; competing motion waits until the current activity clears. Home Assistant can also select a new default or close the active window. Location and layout commands remain main-viewer controls. See the command reference for motion-on, motion-clear, and periodic refresh rules.
 
 ## Validation and current limits
 

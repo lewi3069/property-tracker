@@ -67,6 +67,12 @@ public final class ViewSelector {
         return true;
     }
 
+    public boolean clearActivity(String id) {
+        if (!cameras.contains(id)) return false;
+        motions.remove(id);
+        return true;
+    }
+
     public boolean location(String horseId, String zone, long now, long observedAt) {
         if (horseId == null || horseId.trim().isEmpty() || horseId.length() > 80) return false;
         if (observedAt > now + 5_000 || observedAt <= now - 60_000) return false;

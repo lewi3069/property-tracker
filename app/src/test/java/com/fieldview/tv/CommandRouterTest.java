@@ -27,6 +27,28 @@ public class CommandRouterTest {
         assertFalse(router.accept("{\"type\":\"activity\"}", false, 0));
         assertFalse(router.accept(new String(new char[8193]), false, 0));
     }
+    @Test public void motionOffClearsActivityWithoutWaitingForExpiry() throws Exception {
+        ViewSelector selector = selector(); CommandRouter router = new CommandRouter(selector, (count, until) -> fail());
+        assertTrue(router.accept(activity("on", 30000), false, 0));
+        assertEquals("activity", selector.snapshot(0).reason);
+        String off = new JSONObject().put("type", "activity_end").put("camera_id", "barn").put("event_id", "off").put("expires_at", 31000).toString();
+        assertTrue(router.accept(off, false, 1000)); assertEquals("overview", selector.snapshot(1000).reason);
+        assertFalse(router.accept(off, false, 1001));
+    }
+
+    @Test public void floatingControlsRejectRetainedExpiredUnknownAndDuplicateRequests() {
+        int[] applied = {0};
+        CommandRouter router = new CommandRouter((id, active, now, until) -> "barn".equals(id), (action, id) -> { if ("select".equals(action) && !"barn".equals(id)) return false; applied[0]++; return true; });
+        String select = "{\"type\":\"floating\",\"action\":\"select\",\"camera_id\":\"barn\",\"event_id\":\"one\",\"expires_at\":30000}";
+        assertFalse(router.accept(select, true, 0)); assertTrue(router.accept(select, false, 0));
+        assertFalse(router.accept(select, false, 1)); assertEquals(1, applied[0]);
+        assertFalse(router.accept(select.replace("barn", "disabled").replace("one", "two"), false, 1));
+        assertFalse(router.accept(select.replace("one", "old"), false, 30000));
+        assertFalse(router.accept(select.replace("select", "open"), false, 1));
+        assertTrue(router.accept("{\"type\":\"floating\",\"action\":\"close\",\"event_id\":\"close\",\"expires_at\":30000}", false, 1));
+        assertEquals(2, applied[0]);
+        assertFalse(new CommandRouter(selector(), (count, until) -> fail()).accept(select, false, 0));
+    }
     @Test public void temporaryLayoutAcceptsIsoExpiryAndOnlyIntegralCounts() {
         int[] applied = {0};
         CommandRouter router = new CommandRouter(selector(), (count, until) -> applied[0] = count);
