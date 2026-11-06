@@ -76,3 +76,8 @@ On November 5, 2026, Home Assistant's existing MQTT integration was moved to its
 A dedicated viewer login was saved in the native app on an AFTMM Fire TV Stick. Home Assistant published a non-retained QoS 1 layout command requesting one camera for twenty seconds. The viewer showed one camera with a temporary-layout indicator, then returned to its saved two-camera layout and remained connected. This verifies the command path and layout expiry; no camera-motion or horse-location automation was deployed.
 
 The deployed broker uses the stock Mosquitto app's authenticated permissions. The viewer account is separate, but it is not restricted to a single topic by a broker ACL. The app itself subscribes only to its configured command topic. This deployment uses LAN TCP; TLS and topic-restricted permissions have not been validated. MQTT stops when the main Activity leaves the foreground, including when Float starts.
+
+
+The two additional API 22/API 25 installations were subsequently connected to the same broker with distinct client and screen IDs. Home Assistant commands were tested against the real main Activities: one screen changed 1→2→1 and the other 2→1→2, using non-retained QoS 1 messages with fifteen-second expiry. The other screen's layout remained unchanged during each test. Camera settings and each screen's saved count were preserved. No broker restart was needed, and all 216 active solar MQTT entities remained available with known states.
+
+A sleeping screen authenticated and then disconnected when its Activity stopped. Waking that Firestick allowed the real-viewer command test; it was returned to sleep afterward. Saved connection settings do not make the app a background listener or wake the TV automatically.
