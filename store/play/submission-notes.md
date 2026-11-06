@@ -1,6 +1,6 @@
 # Play submission preparation
 
-The release bundle and listing are preparation artifacts. Console acceptance, track choice, app access, support details, declarations, and final release still need completion and verification in the owner's account.
+The release bundle and listing are preparation artifacts. Publication is currently blocked by the owner's developer-account status. No Property Tracker app has been created or uploaded in Play Console. Track choice, app access, support details, declarations, Play App Signing acceptance, and final release still need completion and verification in the owner's account. The hosted privacy policy is live and verified; private account details and screenshots are kept out of this repository.
 
 ## Build and signing
 

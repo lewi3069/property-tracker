@@ -31,6 +31,8 @@
   },
   "privacy_source": "mobile/src/main/assets/privacy.txt",
   "privacy_html": "docs/privacy.html",
+  "privacy_url": "https://lewi3069.github.io/property-tracker/privacy.html",
+  "privacy_hosting_verified": "2026-11-06",
   "physical_phone_tested": false,
-  "console_blocker": "Owner must review and accept the Console terms; track and public support email remain undecided."
+  "console_blocker": "Publishing is blocked by the owner's developer-account status. No app has been created or uploaded. Release track, public support email, reviewer access and declarations remain pending."
 }

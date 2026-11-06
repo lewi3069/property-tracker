@@ -26,6 +26,6 @@ Suggested category: House & Home. Confirm final category, free/paid choice, coun
 
 Proposed permanent Play package: `com.lewi3069.propertytracker`. The old debug phone package `com.fieldview.mobile` is already registered to an unrelated Field View app on Google Play and cannot be used for our new listing. Debug builds retain that old local package, and the TV package is unchanged. Confirm the new Play identity's availability in Console before first upload. Release candidate: 0.2.1 / code 22 / target API 36 / minimum API 26. The Play package installs separately from the debug phone app and starts with its own configuration; no existing installation must be uninstalled to test it.
 
-Privacy page source: `docs/privacy.html`, generated from the policy included in the app. Intended hosted URL: `https://lewi3069.github.io/property-tracker/privacy.html`; verify it is publicly available before entering it in Play Console.
+Privacy page source: `docs/privacy.html`, generated from the policy included in the app. Hosted policy: [Property Tracker privacy policy](https://lewi3069.github.io/property-tracker/privacy.html). HTTP 200 and matching policy content verified November 6, 2026.
 
 Artwork available: `assets/branding/property-tracker-icon.png` (512 × 512). A compliant feature graphic, real screenshots, and any foreground-service demonstration video remain to be prepared/verified for public release. Do not use private camera footage or credentials in review materials without the owner's explicit authorization.
