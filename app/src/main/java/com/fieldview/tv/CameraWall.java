@@ -40,6 +40,19 @@ public final class CameraWall extends ViewGroup {
         frames.clear();
         if (count == 0) return;
         if (count == 1) { add(0, 0, 1, 1, width, height); return; }
+        if (!BuildConfig.TV_INTERFACE && height > width) {
+            if (featured == 1 && count > 2) {
+                add(0, 0, 1, .5, width, height);
+                int columns = count > 5 ? 3 : 2, rows = (int)Math.ceil((count - 1.0) / columns);
+                for (int i = 0; i < count - 1; i++) add((double)(i % columns) / columns, .5 + .5 * (i / columns) / rows,
+                        (double)(i % columns + 1) / columns, .5 + .5 * (i / columns + 1) / rows, width, height);
+            } else {
+                int columns = count <= 2 ? 1 : count <= 6 ? 2 : 3, rows = (int)Math.ceil((double)count / columns);
+                for (int i = 0; i < count; i++) add((double)(i % columns) / columns, (double)(i / columns) / rows,
+                        (double)(i % columns + 1) / columns, (double)(i / columns + 1) / rows, width, height);
+            }
+            return;
+        }
         if (featured == 1 && count <= 4) {
             add(0, 0, .72, 1, width, height);
             for (int i = 0; i < count - 1; i++) add(.72, (double)i / (count - 1), 1, (double)(i + 1) / (count - 1), width, height);

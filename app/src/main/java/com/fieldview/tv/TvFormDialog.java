@@ -26,8 +26,9 @@ public final class TvFormDialog extends Dialog {
         super(context, R.style.TvFormDialogTheme);
         LinearLayout page = new LinearLayout(context);
         page.setOrientation(LinearLayout.VERTICAL);
-        page.setPadding(dp(24), dp(12), dp(24), dp(12));
-        page.setFitsSystemWindows(true);
+        page.setPadding(dp(BuildConfig.TV_INTERFACE ? 24 : 12), dp(12), dp(BuildConfig.TV_INTERFACE ? 24 : 12), dp(12));
+        page.setFitsSystemWindows(BuildConfig.TV_INTERFACE);
+        if (!BuildConfig.TV_INTERFACE) PhoneInsets.install(page, () -> false, dp(12), dp(8), true);
         page.setBackgroundColor(0xFF101516);
 
         TextView heading = new TextView(context);
@@ -54,6 +55,10 @@ public final class TvFormDialog extends Dialog {
         LinearLayout.LayoutParams saveParams = new LinearLayout.LayoutParams(dp(152), dp(48));
         saveParams.setMarginStart(dp(12)); actions.addView(save, saveParams);
         page.addView(actions, new LinearLayout.LayoutParams(-1, -2));
+        if (!BuildConfig.TV_INTERFACE) {
+            actions.getChildAt(1).setVisibility(View.GONE);
+            for (Button action : new Button[]{remove, cancel, save}) action.setLayoutParams(new LinearLayout.LayoutParams(0, dp(48), 1));
+        }
         setContentView(page);
         cancel.setOnClickListener(view -> dismiss());
         save.setNextFocusLeftId(cancel.getId()); cancel.setNextFocusRightId(save.getId());

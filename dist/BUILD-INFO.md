@@ -1,23 +1,12 @@
-# Property Tracker 0.1.19 native APK
+# Property Tracker 0.2.0
 
-- Application ID: `com.fieldview.tv`; label: Property Tracker; version code: 20
-- Minimum Android API: 22; target API: 35
-- APK: `property-tracker-0.1.19-debug.apk` (6,796,497 bytes)
-- Maintained signing certificate and encrypted-settings identity for in-place updates
-- MQTT controls an existing floating session: motion override, motion clear, timeout fallback, select default, close
-- Reuses one floating window/SurfaceView and preserves silent grid-stream/software-H.264 preferences
-- 81 unit/Robolectric tests passed; lint zero errors / 27 warnings; APK v1/v2 signature verified
-- Installed on three Fire TVs with encrypted settings unchanged; live MQTT and advancing H.264 video observed on AFTT/API 22 and AFTMM/API 25
-- A real Home Assistant motion-on/clear cycle switched an AFTMM floating view away from and back to its selected default
-- No new sustained Plex comparison or physical-TV visual confirmation; previous HEVC/Plex freezes and stale Home artwork remain known limitations
-- Does not wake the TV, launch the app, or open a stopped floating session
+Two native targets share Java sources and dependency/signing configuration. Version code21, target API35. TV retains com.fieldview.tv / minimum API22; phone uses com.fieldview.mobile / minimum API26. No native .so libraries are packaged.
 
-See [validation scope and known limits](../docs/testing.md#version-0119-floating-view-mqtt-and-motion).
+Validation:87 TV/core tests and3 Android15/API35 phone UI tests passed (90 total). Lint:0errors;28 TV warnings,40 phone warnings. TV passed v1/v2 signatures and phone passed v2 signature validation with certificate SHA256 `c453e50d5489f8c6a9fe40355d0107db44a13d30d35a6ed16df093ac775e93a9`.
 
-APK SHA-256:
+- `property-tracker-0.2.0-debug.apk`: 6740709 bytes; SHA256 `d82af6ec73729179caaf2db678162182be7768da394a5c1de42eb1b288e234d9`
+- `property-tracker-phone-0.2.0-debug.apk`: 5556314 bytes; SHA256 `c49e0acd26fe011b5997a8720387e9ba37e8b3d5895a5e5b106f32d37c66dcec`
 
-`3ccc25c3743c93b32c5697c1442cd46c09553fcbbcc92a2e7e1e9791f53586e6`
+No physical Pixel is connected; phone decoding/network/battery/overlay operation remains unverified. No live TV installation, navigation or Plex test was performed for0.2.0. Current TV installations remain0.1.19. Prior HEVC/Plex freezes, unbounded RTSP packet/native memory, synchronous configuration saves, and stale Fire TV Home artwork remain documented limitations.
 
-Signing certificate SHA-256:
-
-`c453e50d5489f8c6a9fe40355d0107db44a13d30d35a6ed16df093ac775e93a9`
+See [phone setup](../docs/MOBILE.md) and [review](../docs/CODE-REVIEW-2026-11-06.md). Camera and broker credentials are not embedded in either APK.

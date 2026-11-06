@@ -28,6 +28,7 @@ import android.widget.Spinner;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.PopupMenu;
 import androidx.media3.common.util.UnstableApi;
 import java.net.URI;
 import java.util.ArrayList;
@@ -51,6 +52,9 @@ public final class MainActivity extends Activity {
     private CameraWall wall;
     private TextView footer, empty;
     private LinearLayout root, toolbar;
+    private LinearLayout phoneControls;
+    private Button phonePrevious, phoneNext;
+    private final Runnable hidePhoneControls = () -> { if (phoneControls != null) phoneControls.setVisibility(View.GONE); };
     private Button autoButton, gridButton, layoutButton;
     private boolean foreground;
     private boolean fullscreen;
@@ -62,6 +66,7 @@ public final class MainActivity extends Activity {
     private static final int OVERLAY_PERMISSION_REQUEST = 41;
     private String signature = "", mqttState = "Home Assistant control not configured";
     private MqttBridge bridge;
+    private CommandInbox inbox;
     private long layoutOverrideUntil;
 
     private final Runnable tick = new Runnable() {
@@ -70,7 +75,7 @@ public final class MainActivity extends Activity {
             if (layoutOverrideUntil != 0 && System.currentTimeMillis() >= layoutOverrideUntil) {
                 layoutOverrideUntil = 0; selector.setCapacity(config.visibleCount);
             }
-            render(); handler.postDelayed(this, 250);
+            render(); handler.postDelayed(this, 1000);
         }
     };
 
@@ -78,6 +83,8 @@ public final class MainActivity extends Activity {
         super.onCreate(state);
         layoutFullscreen = state != null && state.getBoolean("layoutFullscreen", false);
         setupOnly = getIntent().getBooleanExtra(EXTRA_SETUP_ONLY, false);
+        if (state != null) { setupOnly = state.getBoolean("setupOnly", setupOnly); pendingFloatingCamera = state.getString("pendingFloatingCamera"); }
+        if (!BuildConfig.TV_INTERFACE) getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         androidx.media3.common.util.Log.setLogLevel(androidx.media3.common.util.Log.LOG_LEVEL_OFF);
         store = new ConfigStore(this);
@@ -106,20 +113,48 @@ public final class MainActivity extends Activity {
         gridButton = button("Grid", () -> { setupOnly = false; selector.setMode(ViewSelector.GRID, null); render(); }); toolbar.addView(gridButton);
         layoutButton = button("Layout", this::showLayout); toolbar.addView(layoutButton);
         toolbar.addView(button("View", this::showCameraPicker));
-        toolbar.addView(button("Float", this::showFloatingCameraPicker));
-        toolbar.addView(button("Cameras", this::showCameras));
-        toolbar.addView(button("Home Assistant", this::showMqtt));
+        if (BuildConfig.TV_INTERFACE) {
+            toolbar.addView(button("Float", this::showFloatingCameraPicker));
+            toolbar.addView(button("Cameras", this::showCameras));
+            toolbar.addView(button("Home Assistant", this::showMqtt));
+        } else {
+            toolbar.removeView(layoutButton);
+            brand.setVisibility(View.GONE);
+            Button more = button("More", () -> showPhoneMenu(toolbar)); more.setId(R.id.phone_more); toolbar.addView(more);
+            for (int i = 1; i < toolbar.getChildCount(); i++) toolbar.getChildAt(i).setLayoutParams(new LinearLayout.LayoutParams(0, dp(48), 1));
+        }
         root.addView(toolbar, new LinearLayout.LayoutParams(-1, dp(58)));
         FrameLayout content = new FrameLayout(this);
         wall = new CameraWall(this); wall.setId(R.id.camera_wall); content.addView(wall, new FrameLayout.LayoutParams(-1, -1));
         empty = label("", 19);
         empty.setGravity(Gravity.CENTER); content.addView(empty, new FrameLayout.LayoutParams(-1, -1));
         root.addView(content, new LinearLayout.LayoutParams(-1, 0, 1));
+        if (!BuildConfig.TV_INTERFACE) {
+            phoneControls = new LinearLayout(this); phoneControls.setId(R.id.phone_controls); phoneControls.setGravity(Gravity.CENTER);
+            phoneControls.setBackgroundColor(0xCC101516); phoneControls.setVisibility(View.GONE);
+            phoneControls.addView(button("Back", () -> { onBackPressed(); showPhoneControls(); }), new LinearLayout.LayoutParams(0, dp(48), 1));
+            phonePrevious = button("Previous", () -> stepPhone(-1)); phonePrevious.setId(R.id.phone_previous);
+            phoneNext = button("Next", () -> stepPhone(1)); phoneNext.setId(R.id.phone_next);
+            phoneControls.addView(phonePrevious, new LinearLayout.LayoutParams(0, dp(48), 1));
+            phoneControls.addView(phoneNext, new LinearLayout.LayoutParams(0, dp(48), 1));
+            phoneControls.addView(button("More", () -> showPhoneMenu(phoneControls)), new LinearLayout.LayoutParams(0, dp(48), 1));
+            content.addView(phoneControls, new FrameLayout.LayoutParams(-1, dp(52), Gravity.BOTTOM));
+        }
         footer = label("", 12); footer.setTextColor(0xFFAFBEAF); footer.setPadding(dp(4), dp(8), dp(4), 0); footer.setMaxLines(2);
         footer.setId(R.id.viewer_footer);
         root.addView(footer, new LinearLayout.LayoutParams(-1, dp(40)));
         setContentView(root);
+        if (!BuildConfig.TV_INTERFACE) {
+            PhoneInsets.install(root, () -> fullscreen, dp(8), dp(4));
+            if (Build.VERSION.SDK_INT >= 33) getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                    android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, () -> { if (!handleBack()) finish(); });
+        }
         resetSelector();
+        if (state != null) {
+            String mode = state.getString("viewerMode", ViewSelector.AUTO);
+            selector.setMode(mode, state.getString("pinnedCamera"));
+            modeBeforePin = state.getString("modeBeforePin", ViewSelector.AUTO);
+        }
     }
 
     @Override protected void onStart() {
@@ -136,18 +171,29 @@ public final class MainActivity extends Activity {
         }
     }
     @Override protected void onStop() {
+        handler.removeCallbacks(hidePhoneControls);
         foreground = false; handler.removeCallbacks(tick); stopBridge(); releaseTiles(); signature = "";
         super.onStop();
     }
     @Override public void onBackPressed() {
+        if (!handleBack()) super.onBackPressed();
+    }
+    private boolean handleBack() {
         if (selector != null && ViewSelector.PIN.equals(selector.snapshot(System.currentTimeMillis()).mode)) {
             selector.setMode(modeBeforePin, null); render();
         } else if (layoutFullscreen) {
             layoutFullscreen = false; render(); layoutButton.requestFocus();
-        } else super.onBackPressed();
+        } else return false;
+        return true;
     }
     @Override protected void onSaveInstanceState(Bundle state) {
         state.putBoolean("layoutFullscreen", layoutFullscreen);
+        state.putBoolean("setupOnly", setupOnly); state.putString("pendingFloatingCamera", pendingFloatingCamera);
+        if (selector != null) {
+            ViewSelector.Selection selection = selector.snapshot(System.currentTimeMillis());
+            state.putString("viewerMode", selection.mode); state.putString("modeBeforePin", modeBeforePin);
+            if (ViewSelector.PIN.equals(selection.mode) && !selection.visible.isEmpty()) state.putString("pinnedCamera", selection.visible.get(0));
+        }
         super.onSaveInstanceState(state);
     }
     @Override public void onWindowFocusChanged(boolean hasFocus) {
@@ -156,6 +202,14 @@ public final class MainActivity extends Activity {
     }
 
     private void applySystemUi() {
+        if (!BuildConfig.TV_INTERFACE && Build.VERSION.SDK_INT >= 30) {
+            android.view.WindowInsetsController bars = getWindow().getInsetsController();
+            if (bars != null) {
+                bars.setSystemBarsBehavior(android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                if (fullscreen) bars.hide(android.view.WindowInsets.Type.systemBars()); else bars.show(android.view.WindowInsets.Type.systemBars());
+            }
+            return;
+        }
         getWindow().getDecorView().setSystemUiVisibility(fullscreen
                 ? View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
                     | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
@@ -170,6 +224,31 @@ public final class MainActivity extends Activity {
         root.setPadding(value ? 0 : dp(20), value ? 0 : dp(14), value ? 0 : dp(20), value ? 0 : dp(10));
         wall.setFullscreen(value);
         applySystemUi();
+        if (!BuildConfig.TV_INTERFACE) { root.requestApplyInsets(); showPhoneControls(); }
+    }
+    private void showPhoneControls() {
+        if (phoneControls == null) return;
+        handler.removeCallbacks(hidePhoneControls);
+        phoneControls.setVisibility(fullscreen ? View.VISIBLE : View.GONE);
+        if (fullscreen) handler.postDelayed(hidePhoneControls, 5000);
+    }
+    private void stepPhone(int direction) {
+        if (selector != null && selector.stepPinnedCamera(direction)) render();
+        showPhoneControls();
+    }
+    private void showPhoneMenu(View anchor) {
+        PopupMenu menu = new PopupMenu(this, anchor);
+        String[] labels = {"Cameras", "Layout", "Float camera", "Home Assistant"};
+        for (int i = 0; i < labels.length; i++) menu.getMenu().add(0, i, i, labels[i]);
+        menu.setOnMenuItemClickListener(item -> {
+            switch (item.getItemId()) {
+                case 0: showCameras(); break;
+                case 1: showLayout(); break;
+                case 2: showFloatingCameraPicker(); break;
+                case 3: showMqtt(); break;
+            }
+            return true;
+        }); menu.show();
     }
     @Override public boolean onKeyDown(int code, KeyEvent event) {
         if (code == KeyEvent.KEYCODE_MENU && config != null) { showLayout(); return true; }
@@ -197,7 +276,8 @@ public final class MainActivity extends Activity {
             ids.add(camera.id);
             if (!camera.zone.isEmpty()) zones.computeIfAbsent(camera.zone, ignored -> new ArrayList<>()).add(camera.id);
         }
-        selector = new ViewSelector(ids, zones, config.visibleCount, playbackLimits.maxVisible); layoutOverrideUntil = 0;
+        if (selector == null || selector.maxCapacity() != playbackLimits.maxVisible) selector = new ViewSelector(ids, zones, config.visibleCount, playbackLimits.maxVisible);
+        else { selector.reconfigure(ids, zones); if (layoutOverrideUntil == 0) selector.setCapacity(config.visibleCount); }
         router = new CommandRouter(selector, (count, until) -> { layoutOverrideUntil = until; selector.setCapacity(count); });
         signature = "";
     }
@@ -212,6 +292,9 @@ public final class MainActivity extends Activity {
         }
         ViewSelector.Selection selection = selector.snapshot(System.currentTimeMillis());
         boolean pinned = ViewSelector.PIN.equals(selection.mode);
+        if (phoneControls != null) {
+            phonePrevious.setVisibility(pinned ? View.VISIBLE : View.GONE); phoneNext.setVisibility(pinned ? View.VISIBLE : View.GONE);
+        }
         if (!pinned) modeBeforePin = selection.mode;
         setFullscreen(pinned || layoutFullscreen);
         empty.setVisibility(enabledCameras.isEmpty() ? View.VISIBLE : View.GONE);
@@ -242,14 +325,23 @@ public final class MainActivity extends Activity {
             if (!selection.visible.contains(entry.getKey())) { entry.getValue().release(); wall.removeView(entry.getValue()); iterator.remove(); }
         }
         List<View> ordered = new ArrayList<>();
+        // Demote existing featured feeds before starting any new high-resolution streams.
+        for (Map.Entry<String, CameraTile> entry : tiles.entrySet()) {
+            if (!config.useMainStream || !selection.featured.contains(entry.getKey()))
+                entry.getValue().play(camera(entry.getKey()).streamUri(false));
+        }
         for (String id : selection.visible) {
             AppConfig.Camera camera = camera(id);
             CameraTile tile = tiles.get(id);
             if (tile == null) {
                 tile = new CameraTile(this, camera.name);
-                tile.setOnClickListener(view -> { selector.setMode(ViewSelector.PIN, id); render(); });
+                tile.setOnClickListener(view -> {
+                    if (!BuildConfig.TV_INTERFACE && ViewSelector.PIN.equals(selector.snapshot(System.currentTimeMillis()).mode)) showPhoneControls();
+                    else { selector.setMode(ViewSelector.PIN, id); render(); }
+                });
                 tiles.put(id, tile); wall.addView(tile);
             }
+            tile.setContentDescription("Enlarge " + camera.name);
             boolean featured = selection.featured.contains(id);
             tile.setFullscreen(fullscreen, !pinned && selection.visible.size() > 1);
             tile.setFeatured(featured);
@@ -275,15 +367,22 @@ public final class MainActivity extends Activity {
     private void startBridge() {
         if (bridge != null || !foreground) return;
         MqttBridge next = new MqttBridge(); bridge = next;
+        final CommandInbox messages = new CommandInbox(handler, (payload, retained) -> {
+            if (foreground && bridge == next && router.accept(payload, retained, System.currentTimeMillis())) render();
+        });
+        inbox = messages;
         mqttState = config.broker.isEmpty() ? "Home Assistant control not configured" : "Home Assistant control connecting";
         next.start(config, new MqttBridge.Listener() {
             @Override public void status(String value) { runOnUiThread(() -> { if (foreground && bridge == next) { mqttState = value; render(); } }); }
             @Override public void message(String payload, boolean retained) {
-                runOnUiThread(() -> { if (foreground && bridge == next && router.accept(payload, retained, System.currentTimeMillis())) render(); });
+                messages.offer(payload, retained);
             }
         });
     }
-    private void stopBridge() { if (bridge != null) { bridge.stop(); bridge = null; } }
+    private void stopBridge() {
+        if (inbox != null) { inbox.close(); inbox = null; }
+        if (bridge != null) { bridge.stop(); bridge = null; }
+    }
 
     private void showLayout() {
         LinearLayout fields = fields();
@@ -462,7 +561,7 @@ public final class MainActivity extends Activity {
         TvFormDialog dialog = new TvFormDialog(this, title, form);
         if (index >= 0) dialog.setRemoveAction(() -> {
             AppConfig next = copyConfig(); next.cameras.remove(index);
-            if (save(next)) { releaseTiles(); resetSelector(); render(); dialog.dismiss(); }
+            if (save(next)) { resetSelector(); render(); dialog.dismiss(); }
         });
         dialog.saveButton().setOnClickListener(view -> {
                 try {
@@ -479,7 +578,7 @@ public final class MainActivity extends Activity {
                     if (camera.subPath.isEmpty() || !validPath(camera.subPath) || (!camera.mainPath.isEmpty() && !validPath(camera.mainPath))) throw new IllegalArgumentException("Enter stream paths, starting with /, without a full URL.");
                     for (int i = 0; i < config.cameras.size(); i++) if (i != index && config.cameras.get(i).id.equals(camera.id)) throw new IllegalArgumentException("That camera ID is already used.");
                     AppConfig next = copyConfig(); if (index < 0) next.cameras.add(camera); else next.cameras.set(index, camera);
-                    if (save(next)) { releaseTiles(); resetSelector(); render(); dialog.dismiss(); }
+                    if (save(next)) { resetSelector(); render(); dialog.dismiss(); }
                 } catch (NumberFormatException error) { toast("Enter a valid RTSP port."); }
                 catch (IllegalArgumentException error) { toast(error.getMessage()); }
         });

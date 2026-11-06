@@ -77,6 +77,26 @@ public class FullscreenLayoutTest {
         controller.start().resume().visible().windowFocusChanged(true);
         return controller;
     }
+    @Test public void catalogEditsReuseUnchangedPlayersAndKeepAValidPinnedCamera() throws Exception {
+        ActivityController<MainActivity> controller = open(2, "SHIELD");
+        try {
+            MainActivity activity = controller.get(); field(MainActivity.class,"setupOnly").set(activity,false); invoke(activity,"render");
+            CameraTile original = tiles(activity).get("camera-0"); int starts = NoVideo.starts;
+            AppConfig config = (AppConfig) field(MainActivity.class,"config").get(activity);
+            config.cameras.get(8).name = "Hidden camera renamed"; invoke(activity,"resetSelector"); invoke(activity,"render");
+            assertSame(original,tiles(activity).get("camera-0")); assertEquals(starts,NoVideo.starts);
+            selector(activity).setMode(ViewSelector.PIN,"camera-0"); invoke(activity,"render");
+            config.cameras.get(0).name = "Renamed visible camera"; invoke(activity,"resetSelector"); invoke(activity,"render");
+            assertSame(original,tiles(activity).get("camera-0")); assertEquals(starts,NoVideo.starts);
+            assertEquals(ViewSelector.PIN,selector(activity).snapshot(System.currentTimeMillis()).mode);
+            assertEquals("Enlarge Renamed visible camera",original.getContentDescription());
+            config.cameras.get(0).subPath = "/changed"; invoke(activity,"resetSelector"); invoke(activity,"render");
+            assertEquals(starts+1,NoVideo.starts);
+            config.cameras.get(0).enabled=false; invoke(activity,"resetSelector"); invoke(activity,"render");
+            assertFalse(tiles(activity).containsKey("camera-0"));
+        } finally { controller.pause().stop().destroy(); }
+    }
+
     private void saveFullLayout(MainActivity activity) throws Exception {
         invoke(activity, "showLayout");
         AlertDialog dialog = ShadowAlertDialog.getLatestAlertDialog();

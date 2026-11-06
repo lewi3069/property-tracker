@@ -116,3 +116,7 @@ The deployed broker uses the stock Mosquitto app's authenticated permissions. Th
 The two additional API 22/API 25 installations were subsequently connected to the same broker with distinct client and screen IDs. Home Assistant commands were tested against the real main Activities: one screen changed 1→2→1 and the other 2→1→2, using non-retained QoS 1 messages with fifteen-second expiry. The other screen's layout remained unchanged during each test. Camera settings and each screen's saved count were preserved. No broker restart was needed, and all 216 active solar MQTT entities remained available with known states.
 
 A sleeping screen authenticated and then disconnected when its Activity stopped. Waking that Firestick allowed the real-viewer command test; it was returned to sleep afterward. Saved connection settings do not make the app a background listener or wake the TV automatically.
+
+## Connection recovery in0.2.0
+
+Connected status now waits for a successful subscription acknowledgement and accepted QoS. Initial failures and later losses retry with2/4/8/16/30-second backoff; connect/subscription callbacks have12/8-second deadlines. Closing a viewer stops retries and rejects late callbacks. Each UI inbox holds at most64 messages and processes8 per turn; overflow drops oldest pending commands, with command expiry retaining its fallback role. The command topic and payload contract are unchanged. The phone target starts with its own `phone` screen ID; configure a unique identity when connecting more than one phone.

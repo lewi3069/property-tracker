@@ -41,6 +41,18 @@ public final class ViewSelector {
         capacity = Math.min(count, maxCapacity);
         current = null;
     }
+    public int maxCapacity() { return maxCapacity; }
+
+    /** Keep activity/location and a valid manual selection when the catalog is edited. */
+    public void reconfigure(List<String> ids, Map<String, List<String>> mapping) {
+        if (new LinkedHashSet<>(ids).size() != ids.size()) throw new IllegalArgumentException("Duplicate camera IDs");
+        cameras.clear(); cameras.addAll(ids); zones.clear();
+        for (Map.Entry<String, List<String>> entry : mapping.entrySet()) zones.put(entry.getKey(), new ArrayList<>(entry.getValue()));
+        motions.keySet().retainAll(cameras);
+        horses.entrySet().removeIf(entry -> !zones.containsKey(entry.getValue().zone));
+        if (PIN.equals(mode) && !cameras.contains(pinned)) { mode = AUTO; pinned = null; }
+        current = null;
+    }
 
     public boolean setMode(String next, String cameraId) {
         if (!AUTO.equals(next) && !GRID.equals(next) && !PIN.equals(next)) return false;

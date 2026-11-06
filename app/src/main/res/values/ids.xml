@@ -11,4 +11,8 @@
     <item name="camera_wall" type="id" />
     <item name="layout_fullscreen" type="id" />
     <item name="floating_camera" type="id" />
+    <item name="phone_more" type="id" />
+    <item name="phone_controls" type="id" />
+    <item name="phone_previous" type="id" />
+    <item name="phone_next" type="id" />
 </resources>

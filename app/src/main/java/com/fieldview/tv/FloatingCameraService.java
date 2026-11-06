@@ -44,6 +44,7 @@ public class FloatingCameraService extends Service {
     private FloatingViewController controller;
     private CommandRouter router;
     private MqttBridge bridge;
+    private CommandInbox inbox;
     private String currentCamera;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable poll = this::pollSelection;
@@ -133,20 +134,23 @@ public class FloatingCameraService extends Service {
         AppConfig subscription = AppConfig.fromJson(config.toJson());
         // A separate role ID prevents Activity/service handover from evicting either connection.
         subscription.clientId += "-floating";
+        final CommandInbox messages = new CommandInbox(handler, (payload, retained) -> {
+            if (closing || controller != session || router == null) return;
+            if (router.accept(payload, retained, now()) && !closing) refreshFloatingView();
+        });
+        inbox = messages;
         startMqtt(subscription, new MqttBridge.Listener() {
             @Override public void status(String value) {
                 handler.post(() -> { if (!closing && controller == session) Log.i("FieldviewOverlay", value); });
             }
             @Override public void message(String payload, boolean retained) {
-                handler.post(() -> {
-                    if (closing || controller != session || router == null) return;
-                    if (router.accept(payload, retained, now()) && !closing) refreshFloatingView();
-                });
+                messages.offer(payload, retained);
             }
         });
     }
 
     private void stopControl() {
+        if (inbox != null) { inbox.close(); inbox = null; }
         handler.removeCallbacks(poll); router = null; controller = null; stopMqtt();
     }
 

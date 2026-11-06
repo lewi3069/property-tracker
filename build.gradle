@@ -1,3 +1,5 @@
 plugins {
     id 'com.android.application' version '8.9.2' apply false
 }
+ext.propertyTrackerVersion = '0.2.0'
+ext.propertyTrackerVersionCode = 21

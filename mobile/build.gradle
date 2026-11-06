@@ -1,0 +1,14 @@
+plugins { id 'com.android.application' }
+apply from: rootProject.file('gradle/android-common.gradle')
+
+android {
+    defaultConfig {
+        applicationId 'com.fieldview.mobile'
+        minSdk 26
+        buildConfigField 'boolean', 'TV_INTERFACE', 'false'
+    }
+    sourceSets.main {
+        java.srcDirs = [rootProject.file('app/src/main/java')]
+        res.srcDirs = [rootProject.file('app/src/main/res')]
+    }
+}

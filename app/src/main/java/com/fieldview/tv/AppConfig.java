@@ -13,7 +13,7 @@ public final class AppConfig {
     public int visibleCount = 4;
     public boolean useMainStream = true;
     public boolean softwareFloatingH264;
-    public String site = "wrenhaven", display = "tv", broker = "", brokerUser = "", brokerPassword = "";
+    public String site = "wrenhaven", display = BuildConfig.TV_INTERFACE ? "tv" : "phone", broker = "", brokerUser = "", brokerPassword = "";
     public String clientId = "fieldview-" + UUID.randomUUID().toString();
 
     /** A prefilled draft only: the catalog is unchanged until the user saves it. */

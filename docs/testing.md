@@ -158,3 +158,9 @@ A subsequent floating session used one camera as default while an actual Home As
 - Resolution-aware stream budgets and RTSP backlog behavior under sustained decoder/network pressure.
 
 ADB video captures can be green even when the physical TV picture is normal on the tested device. A first-frame callback or screenshot alone is insufficient visual confirmation.
+
+## Version 0.2.0 review and native phone build
+
+All87 TV/core tests and3 phone tests passed, with zero failures. Phone UI tests run against Android15/API35 and cover two-camera portrait stacking, touch fullscreen browsing, pinned-camera restoration after recreation, and narrow-screen edit actions. Core additions cover subscription acknowledgement/rejection, initial-connect backoff, missing-callback deadlines, idempotent shutdown and late callbacks, bounded1000-message bursts, stopped inboxes, and catalog edits preserving unchanged players/manual pins. Both signed APKs build successfully. Lint reports0errors,28 TV warnings and40 phone warnings (including existing artwork/style/backup guidance and compatibility guards shared with the older-TV code).
+
+The current Home Assistant automation rules were read read-only and use the existing activity/activity_end contract, including combined Reolink classifications. No production automation, camera, broker or TV runtime was modified during this review. No real Pixel was connected. No new physical-phone playback, TV stress, or Plex coexistence result is claimed. See the current reliability review for unresolved RTSP/native memory and synchronous settings work.
