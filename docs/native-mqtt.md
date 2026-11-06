@@ -67,4 +67,12 @@ max: 10
 
 For horse tracking, normalize the tracker output to a camera zone in Home Assistant, then publish `location` commands on state changes and periodically while the location is still known. ESPresense node placement and outdoor zone reliability remain a separate field test.
 
-See [Home Assistant MQTT publishing](https://www.home-assistant.io/actions/mqtt.publish/) for the publish action. MQTT connectivity and real automation behavior have not yet been tested on the user's network.
+See [Home Assistant MQTT publishing](https://www.home-assistant.io/actions/mqtt.publish/) for the publish action.
+
+## Deployment validation
+
+On November 5, 2026, Home Assistant's existing MQTT integration was moved to its local Mosquitto app, with a SolarAssistant bridge preserving solar discovery and state traffic. The existing integration and entity identities were retained. All 216 active MQTT entities were available with known states after the migration.
+
+A dedicated viewer login was saved in the native app on an AFTMM Fire TV Stick. Home Assistant published a non-retained QoS 1 layout command requesting one camera for twenty seconds. The viewer showed one camera with a temporary-layout indicator, then returned to its saved two-camera layout and remained connected. This verifies the command path and layout expiry; no camera-motion or horse-location automation was deployed.
+
+The deployed broker uses the stock Mosquitto app's authenticated permissions. The viewer account is separate, but it is not restricted to a single topic by a broker ACL. The app itself subscribes only to its configured command topic. This deployment uses LAN TCP; TLS and topic-restricted permissions have not been validated. MQTT stops when the main Activity leaves the foreground, including when Float starts.

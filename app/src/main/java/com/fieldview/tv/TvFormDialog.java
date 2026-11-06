@@ -94,7 +94,8 @@ public final class TvFormDialog extends Dialog {
         Button button = new Button(context); button.setId(id); button.setText(label);
         button.setTextSize(15); button.setAllCaps(false);
         button.setBackgroundResource(R.drawable.form_action_background);
-        button.setTextColor(context.getColorStateList(R.color.form_action_text));
+        button.setTextColor(Build.VERSION.SDK_INT >= 23 ? context.getColorStateList(R.color.form_action_text)
+                : context.getResources().getColorStateList(R.color.form_action_text));
         return button;
     }
     private EditText findLastField(View view) {

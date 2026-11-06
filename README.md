@@ -1,16 +1,18 @@
 # Property Tracker — native Android TV camera app
 
-<img src="assets/branding/property-tracker-icon.svg" width="88" height="88" alt="Property Tracker icon">
+<img src="assets/branding/property-tracker-property-scene-preview.png" width="88" height="88" alt="Security camera overlooking a house, pine tree, dog, and horse">
 
 Property Tracker is a native Android APK for Android-based Fire TV sticks and NVIDIA Shield. It uses an Android Activity, native TV controls, and Media3 video surfaces. Its original development name was Fieldview; the Android package ID (`com.fieldview.tv`), encrypted-settings alias, and MQTT topic prefix remain stable so existing installations keep their configuration.
 
-[Download Property Tracker 0.1.15](https://github.com/lewi3069/property-tracker/releases/tag/v0.1.15) or build it locally.
+[Download Property Tracker 0.1.18](https://github.com/lewi3069/property-tracker/releases/tag/v0.1.18) or build it locally.
 
 **Playback compatibility:** earlier HEVC floating-camera/Plex sessions froze on an AFTMM Fire TV Stick. Version 0.1.12 adds stall recovery and an optional software H.264 compatibility mode. One 45-minute comparison with a 640 × 480 software-decoded H.264 camera and hardware-H.264 Plex completed successfully. See [the test results and limits](docs/testing.md#later-freeze-and-0112-compatibility-trial).
 
 Version 0.1.14 supplies PNG launcher icons and a matching TV banner at five densities, with explicit launcher-activity artwork. On the tested Fire TV, cached Home and app-grid thumbnails also needed a launcher-registration refresh; see [the icon validation and refresh notes](docs/testing.md#version-0114-fire-tv-icon-compatibility). [Artwork and regeneration instructions](assets/branding/README.md). Playback logic is unchanged from 0.1.12.
 
 Version 0.1.15 removes camera-name bars in every view and adds **Layout → Full screen layout → Save**. The selected multi-camera layout fills the display with the app controls hidden. Remote focus remains visible; select a camera to enlarge it, then press Back to return to the same Auto/Grid layout. Back again restores the controls. This full-screen choice lasts for the current viewing session.
+
+Version 0.1.18 adopts option B: a small camera on the house with a pine tree, dog, and horse, plus a rectangular TV tile. It also supports Android 5.1/API 22: older AFTT sticks use a two-camera budget and encrypted settings protected by a Keystore RSA-wrapped AES key. Newer installations retain their existing AES Keystore identity. Fire TV Home can still show stale or missing artwork on existing installations; the updated PNG resources and explicit launcher metadata do not yet establish a Home-cache fix. See [validation and limits](docs/testing.md#version-0118-older-fire-tv-support-and-artwork).
 
 ## Build and install
 
@@ -23,12 +25,12 @@ Open this directory in Android Studio with JDK 17 and Android SDK 35, or use the
 
 The bootstrap downloads official build tools into the ignored `.tools` directory and accepts their Android SDK build-tool licenses. JDK and Gradle archives are checksum-verified. No system-wide tool installation is needed. Build caches, debug signing key, and SDK stay in the project.
 
-The build creates `app/build/outputs/apk/debug/app-debug.apk`. A copy for installation is provided as `dist/property-tracker-0.1.15-debug.apk` after verification. This is a development APK signed with the same local debug key as earlier versions, so it can update the existing installation without clearing saved settings. A fresh bootstrap creates a new local signing key; updating an existing installation requires its original signing key or a matching signed release APK.
+The build creates `app/build/outputs/apk/debug/app-debug.apk`. A copy for installation is provided as `dist/property-tracker-0.1.18-debug.apk` after verification. This is a development APK signed with the same local debug key as earlier versions, so it can update the existing installation without clearing saved settings. A fresh bootstrap creates a new local signing key; updating an existing installation requires its original signing key or a matching signed release APK.
 
 Once ADB is paired with the target device:
 
 ```powershell
-adb -s DEVICE_ADDRESS:5555 install -r .\dist\property-tracker-0.1.15-debug.apk
+adb -s DEVICE_ADDRESS:5555 install -r .\dist\property-tracker-0.1.18-debug.apk
 adb -s DEVICE_ADDRESS:5555 shell am start -n com.fieldview.tv/.MainActivity
 ```
 
@@ -67,7 +69,7 @@ Commands go to `fieldview/<site>/<screen>/command` on the configured broker. The
 
 Activity messages expire, are deduplicated, and cannot replay from retained MQTT messages. Horse locations need five seconds of stability and expire after a minute without a fresh observation. Temporary layout commands expire back to the screen's saved count. Manual fullscreen pinning takes precedence over automatic activity/location events.
 
-Configure cameras privately on each installation. MQTT delivery and real Home Assistant activity/location automations still need deployment testing.
+Configure cameras privately on each installation. Home Assistant MQTT delivery and automatic expiry back to the saved layout were verified on an AFTMM installation on November 5, 2026. Camera-activity and horse-location automations still need deployment testing. MQTT control currently operates in the main viewer, not the floating-camera service.
 
 ## Validation and current limits
 
@@ -75,6 +77,6 @@ Configure cameras privately on each installation. MQTT delivery and real Home As
 .\scripts\build-android.ps1
 ```
 
-This runs JVM tests for catalog copying/order persistence, the native view selector/command router, connection/error handling, and Robolectric UI regression tests for form visibility, keyboard resizing, and Save-button focus, builds the APK, and runs Android lint. APK signature and package metadata are checked separately with the SDK tools. Playback, native remote navigation, camera copy/reordering/enabled state, and a 45-minute software-H.264 floating-camera/hardware-H.264 Plex comparison have been exercised on an AFTMM device. See [validation details](docs/testing.md). Other hardware, decoder capacity, MQTT connectivity, and longer sustained operation still need testing.
+This runs JVM tests for catalog copying/order persistence, the native view selector/command router, connection/error handling, and Robolectric UI regression tests for form visibility, keyboard resizing, and Save-button focus, builds the APK, and runs Android lint. APK signature and package metadata are checked separately with the SDK tools. Playback, native remote navigation, camera copy/reordering/enabled state, Home Assistant MQTT layout commands, and a 45-minute software-H.264 floating-camera/hardware-H.264 Plex comparison have been exercised on an AFTMM device. See [validation details](docs/testing.md). Other hardware, decoder capacity, activity/location automations, and longer sustained operation still need testing.
 
 The earlier browser layout experiment is preserved under `design-reference/browser-prototype`. It is not packaged into the Android app and is no longer the project entry point. The native implementation is under `app/src/main`.

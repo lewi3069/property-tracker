@@ -4,6 +4,11 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class PlaybackLimitsTest {
+    @Test public void olderFirestickKeepsATwoFeedBudget() {
+        PlaybackLimits limits = PlaybackLimits.forDevice("AFTT", false);
+        assertEquals(2, limits.clamp(9));
+        assertArrayEquals(new int[]{1, 2}, limits.layoutCounts());
+    }
     @Test public void affectedFirestickCannotOfferOrRestoreNineFeeds() {
         PlaybackLimits limits = PlaybackLimits.forDevice("AFTMM", false);
         assertEquals(4, limits.clamp(9));

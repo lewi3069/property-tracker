@@ -388,7 +388,7 @@ public final class MainActivity extends Activity {
     }
 
     private void startFloatingCamera(String id) {
-        if (!Settings.canDrawOverlays(this)) {
+        if (!canDrawOverlays()) {
             new AlertDialog.Builder(this).setTitle("Allow floating camera")
                     .setMessage("Allow Property Tracker to display over other apps. One small camera window will stay visible; returning to Property Tracker closes it.")
                     .setPositiveButton("Open settings", (dialog, which) -> {
@@ -425,10 +425,12 @@ public final class MainActivity extends Activity {
         super.onActivityResult(request, result, data);
         if (request == OVERLAY_PERMISSION_REQUEST && pendingFloatingCamera != null) {
             String id = pendingFloatingCamera; pendingFloatingCamera = null;
-            if (Settings.canDrawOverlays(this)) handler.post(() -> { if (foreground) startFloatingCamera(id); });
+            if (canDrawOverlays()) handler.post(() -> { if (foreground) startFloatingCamera(id); });
             else toast("Floating view needs permission to display over other apps.");
         }
     }
+
+    private boolean canDrawOverlays() { return Build.VERSION.SDK_INT < 23 || Settings.canDrawOverlays(this); }
 
     private void editCamera(int index) {
         editCamera(index, index < 0 ? new AppConfig.Camera() : config.cameras.get(index), index < 0 ? "Add camera" : "Edit camera");

@@ -35,7 +35,7 @@ References: [Amazon media players](https://developer.amazon.com/docs/fire-tv/med
 
 ## Home Assistant control
 
-The native app implements optional MQTT command input with a foreground connection lifecycle. It does not need a Home Assistant API token. MQTT connectivity on the user's network and actual Home Assistant automation delivery remain untested. The connection is configured using the native Home Assistant menu; no automation has been installed in either site.
+The native app implements optional MQTT command input with a foreground connection lifecycle. It does not need a Home Assistant API token. Home Assistant MQTT layout delivery and expiry were verified on an AFTMM installation on November 5, 2026. The connection is configured using the native Home Assistant menu; camera-activity and horse-location automations remain undeployed. The floating-camera service does not currently subscribe to MQTT.
 
 Deployments can include multiple independent Home Assistant sites. Viewer configuration and command topics use explicit site/display IDs so an automation affects the intended screen. Configure each site's camera integrations, entity IDs, and MQTT broker privately.
 

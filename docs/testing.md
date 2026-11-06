@@ -113,12 +113,30 @@ Host validation on November 4, 2026: all 64 unit/Robolectric tests passed; lint 
 
 No Fire TV connection, installation, remote navigation, or live playback test was performed for this update because the operator requested that the current TV screen be left alone. Physical-device remote navigation and playback transitions for this version remain to be checked. The earlier 45-minute comparison belongs to 0.1.12.
 
+## Home Assistant MQTT deployment — November 5, 2026
+
+The existing Home Assistant MQTT entry was reconfigured through its supported UI to use the local Mosquitto app. A SolarAssistant bridge forwarded discovery/state traffic and retained the existing integration and entity identities. After the switch, all 216 active MQTT entities were available with known states.
+
+The installed AFTMM viewer authenticated with a separate broker login. A non-retained QoS 1 command published by Home Assistant temporarily changed the saved two-camera Auto layout to one camera for twenty seconds. Native UI observations confirmed the one-camera temporary layout and its return to two cameras with MQTT still connected. The catalog showed 18 cameras; this setup changed no camera entries. No nine-camera playback, power-control actions, motion automation, horse-location automation, or Plex coexistence comparison was performed during this check.
+
+The broker uses stock authenticated permissions rather than a topic-restricted TV ACL, and this LAN deployment uses TCP rather than TLS. Float does not currently receive MQTT commands. This short functional test does not establish sustained playback reliability.
+
+## Version 0.1.18 older Fire TV support and artwork
+
+Version 0.1.18 supports Android 5.1/API 22. AFTT installations are capped at two simultaneous cameras. Settings on API 22 use a random AES key wrapped by an RSA private key held in AndroidKeyStore; API 23+ retains the original AES Keystore alias and settings envelope. Both 96-bit and legacy 128-bit GCM nonces are accepted with a 128-bit authentication tag. Missing keys or failed authentication do not fall back to plaintext. Older API calls in form colors and overlay permission checks are guarded.
+
+All 70 host unit/Robolectric tests passed, including authenticated-envelope tamper/wrong-key rejection, legacy nonce compatibility, nonce freshness, and the AFTT two-feed budget. Lint reported zero errors and 27 warnings. APK v1/v2 signatures and the maintained signing certificate were verified.
+
+The final APK was installed on an AFTT/API 22 and an AFTMM/API 25. Each received seven direct cameras with credentials transferred through a temporary encrypted payload. Native setup checks verified the saved camera order, two-camera preference, distinct screen identity, and settings read/save/read persistence across processes. Existing encrypted settings remained unchanged during APK updates. Every grid stream rendered its first frame individually on each device. The AFTT uses grid streams for enlarged views as well. Temporary helpers and transfer files were removed. Both displays were asleep at completion and were left sleeping, so final foreground UI and physical-TV picture quality were not visually confirmed. These are short functional checks, not sustained or seven-camera simultaneous playback tests. The additional screens have standalone viewing configured; their MQTT connections remain unconfigured.
+
+Option B is packaged at five icon/banner densities, with the rectangular bitmap declared directly as both app and launcher icon/banner. The original launcher component and application ID are retained. On the existing AFTMM installation, Home showed the older geometric artwork despite the new bitmap resources, then a placeholder after a registration refresh. Restarting the protected Fire TV launcher was denied by the OS. Home artwork remains unresolved; no launcher-data reset, app-data reset, root workaround, or uninstall of the main app was performed. Artwork in the App Library had previously rendered the selected design. Do not describe this release as a verified Home-icon fix.
+
 ## Remaining validation
 
 - Complete isolated foreground-service recovery and pending-restart cancellation on physical hardware.
 - Longer Plex coexistence sessions, HEVC/high-resolution Plex, and other streaming apps.
 - Additional Fire TV models and NVIDIA Shield.
-- Real Home Assistant MQTT delivery and activity/location automations.
+- Camera-activity and horse-location automations, MQTT control during Float, TLS, and topic-restricted broker permissions.
 - Resolution-aware stream budgets and RTSP backlog behavior under sustained decoder/network pressure.
 
 ADB video captures can be green even when the physical TV picture is normal on the tested device. A first-frame callback or screenshot alone is insufficient visual confirmation.

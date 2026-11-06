@@ -13,6 +13,8 @@ public final class PlaybackLimits {
     private PlaybackLimits(int maxVisible) { this.maxVisible = maxVisible; }
 
     public static PlaybackLimits forDevice(String model, boolean lowRam) {
+        // The Android 5.1 AFTT has a smaller decoder/memory budget.
+        if ("AFTT".equalsIgnoreCase(model)) return new PlaybackLimits(2);
         // An AFTMM exhausted memory with nine feeds and its codec/display
         // services crashed. Keep this model at the four-feed layout already exercised.
         return new PlaybackLimits(lowRam || "AFTMM".equalsIgnoreCase(model) ? 4 : 9);

@@ -88,7 +88,7 @@ public class FloatingCameraService extends Service {
         return START_NOT_STICKY;
     }
 
-    protected boolean canDrawOverlays() { return Settings.canDrawOverlays(this); }
+    protected boolean canDrawOverlays() { return Build.VERSION.SDK_INT < 23 || Settings.canDrawOverlays(this); }
     protected boolean isScreenOn() { return ((PowerManager) getSystemService(POWER_SERVICE)).isInteractive(); }
     protected AppConfig loadConfig() throws Exception { return new ConfigStore(this).load(); }
     protected void playStream(CameraTile view, String uri) { view.play(uri); }

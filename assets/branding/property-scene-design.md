@@ -1,0 +1,9 @@
+# Property scene icon
+
+Created November 4, 2026 using the built-in image-generation tool. The final master is `property-tracker-property-scene.png`. Windows System.Drawing performs export resizing and TV-banner text composition; no camera playback code changes are involved. The earlier released artwork is retained separately.
+
+The camera, house, pine, horse and smaller dog are all visible in the master. Small launcher tiles necessarily simplify animal details. Launcher icons remain opaque PNGs at five densities under the existing resource name. These resources are prepared for the next APK; no build, installation or TV action was performed for this artwork checkpoint.
+
+Generation prompt:
+
+> Use case: logo-brand. Create one polished square launcher icon for the native Android TV app Property Tracker. Primary request: a security camera looking over a house, a pine tree, a dog, and a horse. Design a cohesive, striking flat vector-style emblem, not a collage: a prominent recognizable wall-mounted bullet security camera in the upper part, angled down toward the property scene beneath it; a simple roofed house and tall pine tree in the middle ground; a clearly recognizable standing horse in side profile and a smaller clearly recognizable dog in the foreground. All five requested elements must be distinct and legible. Simplified confident silhouettes, elegant strong geometry, generous negative space, thick readable shapes appropriate to a small Fire TV launcher icon. Maintain a restrained palette matching the existing app: solid dark charcoal green #101516 background, pale sage #CBE7AB and mint #78B99C shapes with restrained warm ivory highlights. Square composition, generous safe margins, no border, no outer rounded-square frame, no fine decorative detail. No text, letters, words, watermark, photographic detail, 3D mockup, device mockup, or multiple concepts. Output only the finished icon artwork, opaque background.

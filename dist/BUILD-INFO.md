@@ -1,22 +1,21 @@
-# Property Tracker 0.1.15 native APK
+# Property Tracker 0.1.18 native APK
 
-- Application ID: `com.fieldview.tv`; label: Property Tracker; version code: 16
-- Minimum Android API: 23; target API: 35
-- APK: `property-tracker-0.1.15-debug.apk` (6,391,627 bytes)
-- Maintained signing certificate and encrypted-settings identity for in-place upgrades
-- Camera-name bars removed in all views; names retained in pickers and accessibility labels
-- Layout includes Full screen layout: hide controls and fill the display with the selected camera layout
-- Remote focus remains visible in multi-camera layouts; pin/Back restores the prior Auto/Grid mode
-- Back restores controls without restarting unchanged players; existing device feed limits retained
-- 64 unit/Robolectric tests passed; lint zero errors / 19 existing warnings
-- APK signature, package identity, and version verified locally
-- Not installed or live-tested: operator requested that the TV's current screen be left alone
+- Application ID: `com.fieldview.tv`; label: Property Tracker; version code: 19
+- Minimum Android API: 22; target API: 35
+- APK: `property-tracker-0.1.18-debug.apk` (6,729,174 bytes)
+- Maintained signing certificate and encrypted-settings identity for in-place updates
+- Android 5.1 compatibility: Keystore RSA-wrapped AES settings key, authenticated AES-GCM envelope, guarded newer APIs
+- AFTT capped at two feeds; native encrypted-settings persistence and seven individual grid streams verified on API 22 and API 25
+- Selected house-camera/pine/dog/horse artwork and rectangular icon/banner resources
+- Fire TV Home stale/placeholder artwork remains unresolved on the existing installation
+- 70 tests passed; lint zero errors / 27 warnings; APK v1/v2 signature verified
+- No new sustained playback or Plex coexistence comparison; the earlier 45-minute comparison belongs to 0.1.12
 
-See [validation scope](../docs/testing.md#version-0115-full-screen-camera-layouts). Host tests simulate video initialization; 9-tile geometry is not a nine-camera hardware capacity test. The earlier 45-minute playback comparison belongs to 0.1.12.
+See [validation scope and known limits](../docs/testing.md#version-0118-older-fire-tv-support-and-artwork).
 
 APK SHA-256:
 
-`b04df25324b7c39a82b001572cb84a9e27e82c633e08c9d9535ad1de296ed347`
+`f3e8ba31f36303564b4c5ad01db98b7bf9a27ed1a43671d9c0b871260ade4ecc`
 
 Signing certificate SHA-256:
 

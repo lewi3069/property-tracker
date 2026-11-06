@@ -1,7 +1,12 @@
 # Rebuild the native launcher artwork and shareable previews on Windows.
 # Uses Windows' Segoe UI Semibold for the outlined wordmark; no font is bundled.
 # TV sizing: https://developer.android.com/design/ui/tv/guides/system/tv-app-icon-guidelines
+param([switch]$LegacyArtwork)
 $ErrorActionPreference = 'Stop'
+if (!$LegacyArtwork -and (Test-Path -LiteralPath (Join-Path $PSScriptRoot '../assets/branding/property-tracker-property-scene.png'))) {
+    & (Join-Path $PSScriptRoot 'export-property-scene-branding.ps1')
+    return
+}
 Add-Type -AssemblyName System.Drawing
 $root = Split-Path -Parent $PSScriptRoot
 $assets = Join-Path $root 'assets/branding'
