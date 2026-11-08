@@ -9,6 +9,14 @@ import java.util.Map;
 import static org.junit.Assert.*;
 
 public class ViewSelectorTest {
+    @Test public void heartbeatExtendsExpiryWithoutOvertakingANewerDetection() {
+        ViewSelector s = new ViewSelector(java.util.Arrays.asList("one", "two"), java.util.Collections.emptyMap(), 1);
+        s.activity("one", 0, 30_000); s.activity("two", 10_000, 40_000);
+        assertEquals("two", s.snapshot(10_000).featured.get(0));
+        s.activity("one", 20_000, 50_000);
+        assertEquals("two", s.snapshot(20_000).featured.get(0));
+        assertEquals("one", s.snapshot(40_000).featured.get(0));
+    }
     private ViewSelector make(int count) {
         Map<String, List<String>> zones = new LinkedHashMap<>();
         zones.put("barn", Collections.singletonList("barn"));

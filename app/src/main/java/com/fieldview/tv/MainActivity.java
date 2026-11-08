@@ -42,6 +42,10 @@ import java.util.Map;
 public final class MainActivity extends Activity {
     public static final String EXTRA_SETUP_ONLY = "com.fieldview.tv.SETUP_ONLY";
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private final StartupCoordinator startupCoordinator = new StartupCoordinator(new StartupCoordinator.Scheduler() {
+        @Override public void post(Runnable task, long delayMs) { handler.postDelayed(task, delayMs); }
+        @Override public void remove(Runnable task) { handler.removeCallbacks(task); }
+    }, 2, VideoProgress.TIMEOUT_MS);
     private final Map<String, CameraTile> tiles = new LinkedHashMap<>();
     private ConfigStore store;
     private AppConfig config;
@@ -99,12 +103,7 @@ public final class MainActivity extends Activity {
         }
         ActivityManager memory = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
         playbackLimits = PlaybackLimits.forDevice(Build.MODEL, memory != null && memory.isLowRamDevice());
-        int safeCount = playbackLimits.clamp(config.visibleCount);
-        if (config.visibleCount != safeCount) {
-            config.visibleCount = safeCount;
-            // Clamp before any player starts, even if persisting the new preference fails.
-            try { store.save(config); } catch (Exception ignored) { }
-        }
+        // ViewSelector enforces the effective budget without overwriting the requested layout.
         root = new LinearLayout(this); root.setId(R.id.viewer_root); root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(0xFF101516); root.setPadding(dp(20), dp(14), dp(20), dp(10));
         toolbar = new LinearLayout(this); toolbar.setId(R.id.viewer_toolbar); toolbar.setGravity(Gravity.CENTER_VERTICAL);
@@ -334,7 +333,8 @@ public final class MainActivity extends Activity {
         if (disabled > 0) status += "  ·  " + disabled + " disabled";
         if (layoutOverrideUntil != 0) status += "  ·  temporary layout";
         if (!status.contentEquals(footer.getText())) footer.setText(status);
-        String nextSignature = selection.reason + selection.visible + selection.featured + config.useMainStream + fullscreen;
+        boolean textureGrid = config.textureGrid && selection.visible.size() > 1;
+        String nextSignature = selection.reason + selection.visible + selection.featured + config.useMainStream + fullscreen + textureGrid;
         if (signature.equals(nextSignature)) return;
         signature = nextSignature;
         String previouslyFocused = null;
@@ -342,19 +342,22 @@ public final class MainActivity extends Activity {
         Iterator<Map.Entry<String, CameraTile>> iterator = tiles.entrySet().iterator();
         while (iterator.hasNext()) {
             Map.Entry<String, CameraTile> entry = iterator.next();
-            if (!selection.visible.contains(entry.getKey())) { entry.getValue().release(); wall.removeView(entry.getValue()); iterator.remove(); }
+            if (!selection.visible.contains(entry.getKey()) || entry.getValue().usesTexture() != textureGrid) {
+                entry.getValue().release(); wall.removeView(entry.getValue()); iterator.remove();
+            }
         }
         List<View> ordered = new ArrayList<>();
         // Demote existing featured feeds before starting any new high-resolution streams.
         for (Map.Entry<String, CameraTile> entry : tiles.entrySet()) {
             if (!config.useMainStream || !selection.featured.contains(entry.getKey()))
-                entry.getValue().play(camera(entry.getKey()).streamUri(false));
+                entry.getValue().play(camera(entry.getKey()).streamUri(false), false);
         }
         for (String id : selection.visible) {
             AppConfig.Camera camera = camera(id);
             CameraTile tile = tiles.get(id);
             if (tile == null) {
-                tile = new CameraTile(this, camera.name);
+                tile = new CameraTile(this, camera.name, false, textureGrid);
+                tile.configureStartup(startupCoordinator, id);
                 tile.setOnClickListener(view -> {
                     if (!BuildConfig.TV_INTERFACE && ViewSelector.PIN.equals(selector.snapshot(System.currentTimeMillis()).mode)) showPhoneControls();
                     else { selector.setMode(ViewSelector.PIN, id); render(); }
@@ -365,7 +368,8 @@ public final class MainActivity extends Activity {
             boolean featured = selection.featured.contains(id);
             tile.setFullscreen(fullscreen, !pinned && selection.visible.size() > 1);
             tile.setFeatured(featured);
-            tile.play(camera.streamUri(config.useMainStream && featured));
+            String stream = camera.streamUri(config.useMainStream && featured);
+            tile.play(stream, !stream.equals(camera.streamUri(false)));
             ordered.add(tile);
         }
         wall.setOrder(ordered); wall.setFeaturedCount(selection.featured.size());
@@ -406,11 +410,15 @@ public final class MainActivity extends Activity {
 
     private void showLayout() {
         LinearLayout fields = fields();
-        int[] counts = playbackLimits.layoutCounts();
+        int[] allowedCounts = playbackLimits.layoutCounts();
+        int[] counts = config.visibleCount > playbackLimits.maxVisible ? java.util.Arrays.copyOf(allowedCounts, allowedCounts.length + 1) : allowedCounts;
+        if (counts != allowedCounts) counts[counts.length - 1] = config.visibleCount;
         String[] choices = new String[counts.length];
-        for (int i = 0; i < counts.length; i++) choices[i] = counts[i] + (counts[i] == 1 ? " camera" : " cameras");
+        for (int i = 0; i < counts.length; i++) choices[i] = counts[i] + (counts[i] == 1 ? " camera" : " cameras")
+                + (counts[i] > playbackLimits.maxVisible ? " requested (" + playbackLimits.maxVisible + " live)" : "");
         Spinner count = spinner(choices);
         int index = 0; for (int i = 0; i < counts.length; i++) if (counts[i] == config.visibleCount) index = i;
+        final int requestedCount = config.visibleCount;
         count.setSelection(index); fields.addView(label("Cameras visible on this screen", 14)); fields.addView(count);
         CheckBox fullLayout = new CheckBox(this); fullLayout.setText(R.string.full_screen_layout);
         fullLayout.setId(R.id.layout_fullscreen);
@@ -420,14 +428,22 @@ public final class MainActivity extends Activity {
         CheckBox softwareFloat = new CheckBox(this); softwareFloat.setText("Prefer software H.264 for floating video");
         softwareFloat.setChecked(config.softwareFloatingH264); fields.addView(softwareFloat);
         fields.addView(label("Compatibility option for freezes alongside other video apps. Use a small H.264 grid stream; software decoding uses more CPU. H.265 and ordinary viewing keep their normal decoder selection.", 13));
+        CheckBox texture = new CheckBox(this); texture.setText("Experimental grid compatibility");
+        texture.setChecked(config.textureGrid); fields.addView(texture);
+        fields.addView(label("Try a different drawing path for grid graphics freezes. Single-camera and floating video keep standard rendering. The camera limit stays the same.", 13));
         fields.addView(label(playbackLimits.maxVisible < 9
-                ? "This device is limited to " + playbackLimits.maxVisible + " live cameras at once. Choose any saved camera under View."
+                ? "App compatibility limit: " + playbackLimits.maxVisible + " live cameras at once. Choose any saved camera under View."
                 : "This screen saves its own layout. Start with fewer live feeds and increase after testing playback.", 13));
+        if (requestedCount > playbackLimits.maxVisible)
+            fields.addView(label("Saved request: " + requestedCount + " cameras; currently using " + playbackLimits.clamp(requestedCount) + ".", 13));
         ScrollView scroll = new ScrollView(this); scroll.addView(fields);
         AlertDialog.Builder layoutDialog = new AlertDialog.Builder(this).setTitle("Screen layout").setView(scroll).setNegativeButton("Cancel", null)
                 .setPositiveButton("Save", (dialog, which) -> {
-                    AppConfig next = copyConfig(); next.visibleCount = counts[count.getSelectedItemPosition()]; next.useMainStream = quality.isChecked();
+                    AppConfig next = copyConfig();
+                    next.visibleCount = counts[count.getSelectedItemPosition()];
+                    next.useMainStream = quality.isChecked();
                     next.softwareFloatingH264 = softwareFloat.isChecked();
+                    next.textureGrid = texture.isChecked();
                     if (save(next)) {
                         layoutFullscreen = fullLayout.isChecked();
                         if (layoutFullscreen) setupOnly = false;

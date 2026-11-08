@@ -1,3 +1,4 @@
+13690bbd5751fbb066c6f5fcc41468acf7d963e9289eeb75457d0734f431ce8a  property-tracker-0.2.3-debug.apk
 b022445d5443a75fce8673b5b31bc86bde8872c53f7b5addcefb45272c02e4c5  property-tracker-0.2.2-debug.apk
 f5fe3424a2e290e4a245e51508aa51f42111e8f72b634770f39132a6110e0a35  property-tracker-icon.png
 e2cff5a767a3429883d4726d5b6f1135d68d955ec26f8328490f3736463ff181  property-tracker-tv-banner.png

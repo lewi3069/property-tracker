@@ -6,6 +6,7 @@ final class VideoProgress {
     private static final long STABLE_MS = 10_000, MAX_STABLE_GAP_MS = 5_000;
     private final long startedAt;
     private volatile long firstRenderedAt = -1, lastFrameAt = -1, stableSince = -1;
+    private volatile long submittedFrames;
 
     VideoProgress(long startedAt) { this.startedAt = startedAt; }
 
@@ -15,6 +16,7 @@ final class VideoProgress {
         if (now < startedAt || now < previous) return;
         if (previous < 0 || now - previous > MAX_STABLE_GAP_MS) stableSince = now;
         lastFrameAt = now;
+        submittedFrames++;
     }
 
     /** The actual first-frame callback is required before calling a stream healthy. */
@@ -27,6 +29,7 @@ final class VideoProgress {
     }
 
     boolean stalled(long now) { return silentFor(now) >= TIMEOUT_MS; }
+    long submittedFrames() { return submittedFrames; }
     boolean sustained() {
         long since = stableSince;
         return firstRenderedAt >= 0 && since >= 0 && lastFrameAt - since >= STABLE_MS;

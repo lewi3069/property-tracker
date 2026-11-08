@@ -75,7 +75,9 @@ public final class ViewSelector {
 
     public boolean activity(String id, long now, long expiresAt) {
         if (!cameras.contains(id) || expiresAt <= now || expiresAt - now > 120_000) return false;
-        motions.put(id, new Motion(now, expiresAt));
+        Motion previous = motions.get(id);
+        // Heartbeats extend a detection, rather than making publishing order the motion priority.
+        motions.put(id, new Motion(previous != null && previous.expiresAt > now ? previous.triggeredAt : now, expiresAt));
         return true;
     }
 

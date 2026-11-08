@@ -29,6 +29,34 @@ import static org.robolectric.Shadows.shadowOf;
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = 28)
 public class CameraTileTest {
+    @Test public void releasedQueuedTileCannotAllocateAPlayerOrRestartOnALaterTick() throws Exception {
+        ActivityController<Activity> controller = Robolectric.buildActivity(Activity.class).setup();
+        CameraTile tile = new CameraTile(controller.get(), "Test");
+        try {
+            android.os.Handler handler = new android.os.Handler(Looper.getMainLooper());
+            StartupCoordinator c = new StartupCoordinator(new StartupCoordinator.Scheduler() {
+                public void post(Runnable task, long delay) { handler.postDelayed(task, delay); }
+                public void remove(Runnable task) { handler.removeCallbacks(task); }
+            }, 1, 20_000);
+            tile.configureStartup(c, "test"); tile.play("rtsp://example.invalid/sub", false);
+            Object queued = field("startup").get(tile);
+            tile.setFeatured(true); tile.play("rtsp://example.invalid/sub", true);
+            assertSame(queued, field("startup").get(tile));
+            tile.release(); shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMinutes(2));
+            assertNull(field("player").get(tile)); assertNull(field("startup").get(tile)); assertNull(field("retry").get(tile));
+        } finally { tile.release(); controller.pause().stop().destroy(); }
+    }
+    @Test public void textureExperimentCannotAffectFloatingSurface() throws Exception {
+        ActivityController<Activity> controller = Robolectric.buildActivity(Activity.class).setup();
+        try {
+            CameraTile grid = new CameraTile(controller.get(), "Test", false, true);
+            CameraTile floating = new CameraTile(controller.get(), "Test", true, true);
+            androidx.media3.ui.PlayerView gridView = (androidx.media3.ui.PlayerView) field("surface").get(grid);
+            androidx.media3.ui.PlayerView floatView = (androidx.media3.ui.PlayerView) field("surface").get(floating);
+            assertTrue(gridView.getVideoSurfaceView() instanceof android.view.TextureView);
+            assertTrue(floatView.getVideoSurfaceView() instanceof android.view.SurfaceView);
+        } finally { controller.pause().stop().destroy(); }
+    }
     private Field field(String name) throws Exception {
         Field field = CameraTile.class.getDeclaredField(name); field.setAccessible(true); return field;
     }

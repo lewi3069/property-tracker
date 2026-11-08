@@ -2,6 +2,8 @@
 
 Reviewed November 8, 2026, against TV 0.2.2 / commit `06f780d`. This is a source review and implementation plan; it introduces no runtime change or live-device experiment.
 
+Implementation has since begun in **0.2.3**: shared startup/retry admission, diagnostic events, stream-profile buffer selection, stable motion heartbeat priority, preservation of requested layouts, and an opt-in grid renderer. [Current implementation, validation and remaining work](PLAYBACK-023.md). Findings below describe the reviewed 0.2.2 baseline, not the later implementation.
+
 The goal is reliable six-camera and then nine-camera viewing on the affected Fire TV, using a workload comparable to the owner's working tinyCam setup. The current four-camera safeguard is an app compatibility policy, not a measured hardware maximum. Its removal depends on evidence for the replacement playback path.
 
 ## Evidence and unknowns

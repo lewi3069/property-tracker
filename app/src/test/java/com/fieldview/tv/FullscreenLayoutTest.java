@@ -45,6 +45,7 @@ public class FullscreenLayoutTest {
             ExoPlayer player = (ExoPlayer) Proxy.newProxyInstance(ExoPlayer.class.getClassLoader(),
                     new Class<?>[]{ExoPlayer.class}, (proxy, method, args) -> null);
             field(CameraTile.class, "player").set(tile, player);
+            Method ready = CameraTile.class.getDeclaredMethod("finishStartup"); ready.setAccessible(true); ready.invoke(tile);
         }
     }
 
@@ -53,6 +54,7 @@ public class FullscreenLayoutTest {
     }
     private void invoke(MainActivity activity, String name) throws Exception {
         Method method = MainActivity.class.getDeclaredMethod(name); method.setAccessible(true); method.invoke(activity);
+        shadowOf(Looper.getMainLooper()).idle();
     }
     @SuppressWarnings("unchecked") private Map<String, CameraTile> tiles(MainActivity activity) throws Exception {
         return (Map<String, CameraTile>) field(MainActivity.class, "tiles").get(activity);
@@ -188,11 +190,31 @@ public class FullscreenLayoutTest {
             assertTrue(router.accept("{\"type\":\"layout\",\"max_visible\":9,\"expires_at\":" + (now + 30000) + "}", false, now));
             invoke(activity, "render"); assertFullLayout(activity, 4);
             AppConfig config = (AppConfig) field(MainActivity.class, "config").get(activity);
+            assertEquals(9, config.visibleCount);
+            saveFullLayout(activity);
+            assertEquals(9, ((AppConfig) field(MainActivity.class, "config").get(activity)).visibleCount);
             assertEquals(9, config.cameras.size());
             selector(activity).setMode(ViewSelector.PIN, "camera-8"); invoke(activity, "render");
             assertEquals(1, tiles(activity).size()); assertTrue(tiles(activity).containsKey("camera-8"));
             selector(activity).setMode(ViewSelector.AUTO, null); invoke(activity, "render");
             assertFullLayout(activity, 4);
+        } finally { controller.pause().stop().destroy(); }
+    }
+    @Test public void textureGridHandsOffToSurfaceForSingleCameraAndBackWithoutChangingBudget() throws Exception {
+        ActivityController<MainActivity> controller = open(9, "AFTKM");
+        try {
+            MainActivity activity = controller.get();
+            AppConfig config = (AppConfig) field(MainActivity.class, "config").get(activity);
+            config.textureGrid = true; field(MainActivity.class, "setupOnly").set(activity, false);
+            invoke(activity, "render"); assertEquals(4, tiles(activity).size());
+            CameraTile grid = tiles(activity).get("camera-0"); assertTrue(grid.usesTexture());
+            grid.performClick(); shadowOf(Looper.getMainLooper()).idle();
+            CameraTile single = tiles(activity).get("camera-0");
+            assertNotSame(grid, single); assertFalse(single.usesTexture());
+            assertNull(field(CameraTile.class, "player").get(grid));
+            activity.onBackPressed(); shadowOf(Looper.getMainLooper()).idle();
+            assertEquals(4, tiles(activity).size()); assertTrue(tiles(activity).get("camera-0").usesTexture());
+            assertNull(field(CameraTile.class, "player").get(single));
         } finally { controller.pause().stop().destroy(); }
     }
 }

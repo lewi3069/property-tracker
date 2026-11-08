@@ -8,6 +8,14 @@ import java.util.List;
 import static org.junit.Assert.*;
 
 public class CameraCatalogTest {
+    @Test public void gridExperimentDefaultsOffForOldSettingsAndRoundTripsWithoutChangingCameras() throws Exception {
+        AppConfig config = new AppConfig(); config.cameras.add(camera("barn"));
+        org.json.JSONObject old = config.toJson(); old.remove("textureGrid");
+        assertFalse(AppConfig.fromJson(old).textureGrid);
+        config.textureGrid = true;
+        AppConfig restored = AppConfig.fromJson(config.toJson());
+        assertTrue(restored.textureGrid); assertEquals(config.cameras.get(0).password, restored.cameras.get(0).password);
+    }
     @Test public void floatingCompatibilityPreferenceDefaultsOffAndSurvivesSavingAndCopying() throws Exception {
         AppConfig config = new AppConfig(); config.cameras.add(camera("barn"));
         assertFalse(config.softwareFloatingH264);
