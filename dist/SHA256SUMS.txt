@@ -1,4 +1,3 @@
-d82af6ec73729179caaf2db678162182be7768da394a5c1de42eb1b288e234d9  property-tracker-0.2.0-debug.apk
-c49e0acd26fe011b5997a8720387e9ba37e8b3d5895a5e5b106f32d37c66dcec  property-tracker-phone-0.2.0-debug.apk
+b022445d5443a75fce8673b5b31bc86bde8872c53f7b5addcefb45272c02e4c5  property-tracker-0.2.2-debug.apk
 f5fe3424a2e290e4a245e51508aa51f42111e8f72b634770f39132a6110e0a35  property-tracker-icon.png
 e2cff5a767a3429883d4726d5b6f1135d68d955ec26f8328490f3736463ff181  property-tracker-tv-banner.png

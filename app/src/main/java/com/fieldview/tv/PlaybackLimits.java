@@ -17,7 +17,9 @@ public final class PlaybackLimits {
         if ("AFTT".equalsIgnoreCase(model)) return new PlaybackLimits(2);
         // An AFTMM exhausted memory with nine feeds and its codec/display
         // services crashed. Keep this model at the four-feed layout already exercised.
-        return new PlaybackLimits(lowRam || "AFTMM".equalsIgnoreCase(model) ? 4 : 9);
+        // AFTKM also reported a vendor hardware-composer crash with a saved
+        // nine-feed layout. Reduce simultaneous surfaces on this model.
+        return new PlaybackLimits(lowRam || "AFTMM".equalsIgnoreCase(model) || "AFTKM".equalsIgnoreCase(model) ? 4 : 9);
     }
 
     public int clamp(int requested) { return Math.max(1, Math.min(maxVisible, requested)); }

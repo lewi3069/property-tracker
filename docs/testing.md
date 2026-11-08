@@ -159,6 +159,8 @@ The historical phone debug package is already registered to an unrelated app on 
 
 ## Remaining validation
 
+The AFTKM graphics-service incident and 0.2.2 mitigation have [separate evidence and results](INCIDENT-2026-11-08.md). All 14 grid streams loaded individually; a five-minute physical-device observation kept four advancing surfaces and unchanged app/system graphics processes. The vendor crash's cause remains unconfirmed.
+
 - Complete isolated foreground-service recovery and pending-restart cancellation on physical hardware.
 - Longer Plex coexistence sessions, HEVC/high-resolution Plex, and other streaming apps.
 - Additional Fire TV models and NVIDIA Shield.

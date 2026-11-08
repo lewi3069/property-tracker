@@ -174,4 +174,25 @@ public class FullscreenLayoutTest {
             assertFullLayout(activity, 4); assertEquals(4, NoVideo.starts);
         } finally { controller.pause().stop().destroy(); }
     }
+
+    @Test public void karatSavedAndRemoteNineFeedRequestsKeepFourSurfacesAndTheFullCatalog() throws Exception {
+        ActivityController<MainActivity> controller = open(9, "AFTKM");
+        try {
+            MainActivity activity = controller.get();
+            field(MainActivity.class, "setupOnly").set(activity, false);
+            field(MainActivity.class, "layoutFullscreen").set(activity, true);
+            invoke(activity, "render");
+            assertFullLayout(activity, 4);
+            CommandRouter router = (CommandRouter) field(MainActivity.class, "router").get(activity);
+            long now = System.currentTimeMillis();
+            assertTrue(router.accept("{\"type\":\"layout\",\"max_visible\":9,\"expires_at\":" + (now + 30000) + "}", false, now));
+            invoke(activity, "render"); assertFullLayout(activity, 4);
+            AppConfig config = (AppConfig) field(MainActivity.class, "config").get(activity);
+            assertEquals(9, config.cameras.size());
+            selector(activity).setMode(ViewSelector.PIN, "camera-8"); invoke(activity, "render");
+            assertEquals(1, tiles(activity).size()); assertTrue(tiles(activity).containsKey("camera-8"));
+            selector(activity).setMode(ViewSelector.AUTO, null); invoke(activity, "render");
+            assertFullLayout(activity, 4);
+        } finally { controller.pause().stop().destroy(); }
+    }
 }

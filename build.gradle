@@ -1,8 +1,8 @@
 plugins {
     id 'com.android.application' version '8.10.1' apply false
 }
-ext.propertyTrackerVersion = '0.2.1'
-ext.propertyTrackerVersionCode = 22
+ext.propertyTrackerVersion = '0.2.2'
+ext.propertyTrackerVersionCode = 23
 
 subprojects {
     if (providers.gradleProperty('propertyTrackerBuildRoot').isPresent()) {
