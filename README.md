@@ -8,6 +8,8 @@ Property Tracker is a native Android APK for Android-based Fire TV sticks and NV
 
 Version 0.2.2 limits AFTKM Fire TV sticks to four simultaneous cameras after a reported vendor graphics-service crash on a device configured for nine. Existing saved and remote requests are clamped before players start; every saved camera remains available through View. This is a mitigation, with [incident evidence and validation limits](docs/INCIDENT-2026-11-08.md).
 
+The [playback improvement plan](docs/PLAYBACK-IMPROVEMENT-PLAN.md) reviews the current pipeline and lays out a matched tinyCam comparison, staged startup/recovery, an alternative grid renderer, and the tests required before enabling larger layouts on the affected model. Four cameras is a temporary app compatibility policy, not a measured hardware maximum.
+
 **Playback compatibility:** earlier HEVC floating-camera/Plex sessions froze on an AFTMM Fire TV Stick. Version 0.1.12 adds stall recovery and an optional software H.264 compatibility mode. One 45-minute comparison with a 640 × 480 software-decoded H.264 camera and hardware-H.264 Plex completed successfully. See [the test results and limits](docs/testing.md#later-freeze-and-0112-compatibility-trial).
 
 Version 0.1.14 supplies PNG launcher icons and a matching TV banner at five densities, with explicit launcher-activity artwork. On the tested Fire TV, cached Home and app-grid thumbnails also needed a launcher-registration refresh; see [the icon validation and refresh notes](docs/testing.md#version-0114-fire-tv-icon-compatibility). [Artwork and regeneration instructions](assets/branding/README.md). Playback logic is unchanged from 0.1.12.
