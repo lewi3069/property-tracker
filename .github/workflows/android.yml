@@ -36,7 +36,12 @@ jobs:
           cache-read-only: ${{ github.event_name == 'pull_request' }}
       - name: Prepare SDK and disposable debug key
         run: |
-          sdkmanager --sdk_root="$ANDROID_HOME" 'platforms;android-36' 'build-tools;35.0.0' 'build-tools;36.0.0'
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [[ ! -x "$sdkmanager" ]]; then
+            sdkmanager="$(find "$ANDROID_HOME/cmdline-tools" -mindepth 3 -maxdepth 3 -type f -name sdkmanager | sort -V | tail -n 1)"
+          fi
+          test -x "$sdkmanager"
+          "$sdkmanager" --sdk_root="$ANDROID_HOME" 'platforms;android-36' 'build-tools;35.0.0' 'build-tools;36.0.0'
           printf 'sdk.dir=%s\n' "$ANDROID_HOME" > local.properties
           mkdir -p .tools
           keytool -genkeypair -noprompt -keystore .tools/debug.keystore \
@@ -45,6 +50,15 @@ jobs:
             -dname 'CN=Property Tracker CI,O=Build Verification,C=US'
       - name: Check diagnostic summaries
         run: python3 -m unittest discover -s scripts -p test_summarize_playback.py
+      - name: Check Windows build script syntax
+        shell: pwsh
+        run: |
+          foreach ($script in Get-ChildItem scripts -Filter '*.ps1') {
+            $tokens = $null
+            $parseErrors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($script.FullName, [ref]$tokens, [ref]$parseErrors) | Out-Null
+            if ($parseErrors.Count) { throw "Invalid PowerShell syntax in $($script.Name): $parseErrors" }
+          }
       - name: Test, build and lint TV and phone
         run: >-
           gradle --no-daemon --console=plain

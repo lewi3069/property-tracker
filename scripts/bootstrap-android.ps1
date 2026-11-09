@@ -10,19 +10,23 @@ function Get-Archive($Uri, $Destination) {
     }
 }
 
-if (!(Test-Path -LiteralPath (Join-Path $toolRoot 'jdk'))) {
-    $jdkAssets = Invoke-RestMethod 'https://api.adoptium.net/v3/assets/latest/17/hotspot?architecture=x64&image_type=jdk&os=windows&vendor=eclipse'
+$jdkRoot = Join-Path $toolRoot 'jdk21'
+if (!(Test-Path -LiteralPath (Join-Path $jdkRoot 'bin\java.exe'))) {
+    if (Test-Path -LiteralPath $jdkRoot) { throw 'Incomplete JDK21 directory exists; it will not be overwritten.' }
+    $jdkAssets = Invoke-RestMethod 'https://api.adoptium.net/v3/assets/latest/21/hotspot?architecture=x64&image_type=jdk&os=windows&vendor=eclipse'
     $jdkPackage = $jdkAssets[0].binary.package
-    $jdkZip = Join-Path $toolRoot 'jdk.zip'
+    $jdkZip = Join-Path $toolRoot 'jdk21.zip'
     Get-Archive $jdkPackage.link $jdkZip
     if ((Get-FileHash -LiteralPath $jdkZip -Algorithm SHA256).Hash.ToLower() -ne $jdkPackage.checksum) { throw 'JDK checksum mismatch' }
-    Expand-Archive -LiteralPath $jdkZip -DestinationPath (Join-Path $toolRoot 'jdk-unpack') -Force
-    $jdkDirectory = Get-ChildItem -LiteralPath (Join-Path $toolRoot 'jdk-unpack') -Directory | Select-Object -First 1
+    Expand-Archive -LiteralPath $jdkZip -DestinationPath (Join-Path $toolRoot 'jdk21-unpack') -Force
+    $jdkDirectories = @(Get-ChildItem -LiteralPath (Join-Path $toolRoot 'jdk21-unpack') -Directory)
+    if ($jdkDirectories.Count -ne 1) { throw 'Unexpected JDK21 archive layout.' }
+    $jdkDirectory = $jdkDirectories[0]
     # Only move this verified direct child of the task-owned extraction directory.
-    if ($jdkDirectory.Parent.FullName -ne (Join-Path $toolRoot 'jdk-unpack')) { throw 'Unexpected JDK extraction path' }
-    Move-Item -LiteralPath $jdkDirectory.FullName -Destination (Join-Path $toolRoot 'jdk')
+    if ($jdkDirectory.Parent.FullName -ne (Join-Path $toolRoot 'jdk21-unpack')) { throw 'Unexpected JDK extraction path' }
+    Move-Item -LiteralPath $jdkDirectory.FullName -Destination $jdkRoot
 }
-Write-Output 'Local JDK ready.'
+Write-Output 'Local JDK21 ready.'
 
 $gradleZip = Join-Path $toolRoot 'gradle.zip'
 if (!(Test-Path -LiteralPath (Join-Path $toolRoot 'gradle-8.11.1'))) {
@@ -39,7 +43,7 @@ if (!(Test-Path -LiteralPath (Join-Path $sdkRoot 'cmdline-tools\bin\sdkmanager.b
     Get-Archive 'https://dl.google.com/android/repository/commandlinetools-win-13114758_latest.zip' $sdkZip
     Expand-Archive -LiteralPath $sdkZip -DestinationPath $sdkRoot -Force
 }
-$env:JAVA_HOME = Join-Path $toolRoot 'jdk'
+$env:JAVA_HOME = $jdkRoot
 $env:ANDROID_USER_HOME = Join-Path $toolRoot 'android-user'
 $sdkManager = Join-Path $sdkRoot 'cmdline-tools\bin\sdkmanager.bat'
 # SDK package licenses are accepted for this task-local Android build toolchain.

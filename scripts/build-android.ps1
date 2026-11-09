@@ -1,8 +1,8 @@
 param([string[]]$Tasks = @('testDebugUnitTest', 'assembleDebug', 'lintDebug'), [string]$BuildOutputRoot = '')
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$env:JAVA_HOME = Join-Path $projectRoot '.tools\jdk'
-if (Test-Path -LiteralPath (Join-Path $projectRoot '.tools\jdk21\bin\java.exe')) { $env:JAVA_HOME = Join-Path $projectRoot '.tools\jdk21' }
+$env:JAVA_HOME = Join-Path $projectRoot '.tools\jdk21'
+if (!(Test-Path -LiteralPath (Join-Path $env:JAVA_HOME 'bin\java.exe'))) { throw 'Run scripts/bootstrap-android.ps1 first; the test suite requires JDK21.' }
 $env:GRADLE_USER_HOME = Join-Path $projectRoot '.tools\gradle-cache'
 $env:ANDROID_USER_HOME = Join-Path $projectRoot '.tools\android-user'
 $gradle = Join-Path $projectRoot '.tools\gradle-8.11.1\bin\gradle.bat'

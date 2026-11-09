@@ -34,7 +34,6 @@ Use JDK 21 and Android SDK 35/36 for the full build and test suite. TV retains i
 
 ```powershell
 .\scripts\bootstrap-android.ps1
-.\scripts\bootstrap-play-tools.ps1
 .\scripts\build-android.ps1
 ```
 
