@@ -16,6 +16,8 @@ All **111 TV/core tests**, **14 phone tests** and **three diagnostic-summary tes
 
 The repository now has an Android CI workflow using pinned action commits, Java 21, Gradle 8.11.1 and the required Android SDK packages on Ubuntu 24.04. Its [first complete Linux run passed](https://github.com/lewi3069/property-tracker/actions/runs/42580463373) for source commit `35a6ea1`: TV/phone tests, both APK builds and lint tasks, three diagnostic-summary checks, Windows script syntax and artifact compatibility checks. Test/lint reports are retained for seven days. It uses read-only repository permissions and a disposable debug signing key; it uploads reports rather than APKs or keys.
 
+The native-view allocation change also passed a subsequent [complete Linux CI run](https://github.com/lewi3069/property-tracker/actions/runs/42586963080) for source commit `214b6db`.
+
 The new `scripts/verify-debug-apks.py` also passed against the local candidate builds. It checks package/version identities, API levels, ZIP integrity, the six expected TV ARM libraries and the absence of native libraries in the phone target. The Windows bootstrap now downloads Java 21 directly, avoiding the previous Java 17 download followed by a separate Java 21 setup. The build wrapper fails clearly if that required test runtime is absent. PowerShell parsing and an invocation of the updated wrapper passed locally; a complete fresh Windows toolchain download was not repeated.
 
 ## Passive observation of the installed version
@@ -39,5 +41,7 @@ The user confirmed all 13 physical-TV pictures looked normal after the original 
 ## Remaining work
 
 Continue passive memory/counter trends while the viewer is already open. Investigate sustained growth before raising default budgets or making CPU/frame-quality changes. Validate the 0.2.6 candidate's native shutdown and unsupported-profile behavior on hardware during an authorized interactive test. Longer uninterrupted presentation, live latency, fault recovery, Float/Plex coexistence and other hardware remain separate checks.
+
+A read-only inventory identified a 32-bit ARM app runtime and a Perfetto executable on the observed device, but no `heapprofd` executable at its standard system path. The installed debug package permits `run-as` access. A native allocation trace therefore needs a suitable profiling method or another controlled test device; no profiler, heap dump or process signal was started during these observations.
 
 No TV was woken or navigated, and no camera encoder, firewall, broker, Home Assistant automation, camera catalog or saved credential was changed by this review.
