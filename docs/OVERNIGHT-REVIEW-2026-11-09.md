@@ -1,5 +1,7 @@
 # Overnight reliability review — November 9, 2026
 
+**Main unresolved finding:** all 13 pictures continued advancing during sampled windows, but native allocation kept rising. Long-term memory stability has not been established, and none of the candidate improvements has been installed on the observed TV.
+
 Development source is now **0.2.6 / code 27**. The installed and downloadable TV APK remains **0.2.5**; the phone download remains 0.2.0. No APK was installed or published during this review. Google Play work remains paused.
 
 ## Changes verified on the host
@@ -36,29 +38,37 @@ Control-message handling retains its existing bounds: an 8 KiB MQTT payload chec
 
 ## Passive observation of the installed version
 
-The AFTKM viewer was already awake and displaying Property Tracker. A read-only 117-second observation captured four screenshots; all 13 camera crops changed between every sample. The app, codec, graphics and system process IDs and boot identity matched the earlier final-install observation. Recent displayed-picture counters were advancing. This is evidence of a still-running process and current playback, not continuous observation throughout the intervening hours.
+The AFTKM viewer was already awake and displaying Property Tracker for each observation. The app process and boot identity remained unchanged at the sampled endpoints. Short screenshot samples at approximately 01:15, 01:45, 03:22, 05:00 and 06:00 Eastern showed all 13 camera crops changing at every interval; their monitored codec, graphics and system processes also remained unchanged. These are intermittent read-only observations, not continuous physical-TV observation throughout the intervening hours.
 
-Memory warrants further investigation: RSS was approximately 414–421 MiB during this sample, and native allocation counters ranged from approximately 530–535 MiB. Earlier short-run native counters were around 344 MiB. One memory dump reported approximately 515 MiB total PSS and 65 MiB swap PSS; these measurements are different accounting views and should not be added together. A short CPU sample was about 2.5 of four cores. The cause of the higher native allocation is not established; allocator retention, camera replacement and continued growth require separate measurement. The native engine remains experimental and default device limits are unchanged.
+Native allocation continued upward in the installed **0.2.5** process:
 
-The exact pinned SDK JNI sources were inspected for the statistics and current-track calls. The statistics wrapper uses a stack statistics structure and returns a Java sample; the current-track wrapper calls the core track-ID accessor. No retained native allocation was identified in those wrappers. This does not rule out a leak or buffering growth elsewhere in the SDK/core.
+| Eastern time | Approximate native allocation (MiB) | Evidence at that point |
+| --- | ---: | --- |
+| 01:15 | 530–535 | Four screenshots over 117 seconds; all 13 crops changed |
+| 01:45 | 549–555 | Four screenshots over 114 seconds; all 13 crops changed |
+| 02:16 | 575–577 | Resource and recent health-counter reading |
+| 03:22 | 650–654 | Three screenshots over 90 seconds; all 13 crops changed |
+| 04:00 | 692–693 | Resource and recent health-counter reading |
+| 04:28 | 715–716 | Resource and recent health-counter reading |
+| 05:00 | 737–739 | Four screenshots over 117 seconds; all 13 crops changed |
+| 05:28 | 757–758 | Resource and recent health-counter reading |
+| About 06:00 | 781–783 | Two screenshots over 65 seconds; all 13 crops changed |
 
-A later 114-second passive sample again showed all 13 crops changing and the same monitored processes. RSS was approximately 423–427 MiB and native allocation counters approximately 549–555 MiB, above the earlier sample. This strengthens the case for further native-memory profiling; it does not identify which allocations account for the difference.
+These counters describe native allocations, not resident RAM. At 04:00, process RSS was approximately 602 MiB and process swap 66 MiB. At 05:28, RSS was approximately 379 MiB and process swap 357 MiB. The adjacent 05:58 resource point reported approximately 385 MiB RSS, 375 MiB process swap, 256 MiB system available memory and 49 MiB free out of 800 MiB system swap. Reduced RSS with higher swap and native allocation does not establish recovery or a memory plateau. Native allocation, RSS, PSS and swap are different accounting views and must not be added together.
 
-At approximately 03:22 Eastern, another 90-second sample had three screenshots with all 13 crops changing and the same app process. Native allocation counters were approximately 650–654 MiB, while sampled RSS varied approximately 478–544 MiB. The increase remains unresolved; none of the candidate's allocation improvements has been installed on the observed device. A stable process and advancing pictures do not establish a stable long-term memory budget.
+Brief CPU readings ranged around 2.5–3 of four cores. The 05:58 reading was approximately 66% of four-core capacity. The thermal service reported status 0 and current HAL temperatures of approximately 65.9°C CPU and 42.8°C GPU; cached temperatures were different. These are short resource readings, not matched performance benchmarks or evidence of a candidate CPU improvement.
 
-At approximately 04:00 Eastern, a lighter resource/log reading found the same app process and boot identity, approximately 602 MiB RSS, 66 MiB process swap and 692–693 MiB native allocation. The supplied log covered about four and a half minutes, with health records from 13 camera attempts and no start, retry, release, stall or cleanup-failure events. Displayed counters advanced in that interval. No screenshots or profiler were taken for this point, so it does not add physical presentation evidence.
+The supplied recent logs contained no playback, stall, stopped or cleanup-failure events. All 13 camera/session/attempt keys matched across the 03:22, 04:00 and 05:28 resource logs. Matching player attempts at endpoints does not rule out motion-driven resizing between them; this is why the candidate adds tile dimensions and resize counts. The cause of the native growth remains unresolved. No default resource budget was raised.
 
-All 13 camera/session/attempt keys matched those in the earlier 03:22 resource log. These matching endpoint samples narrow the next investigation toward retained allocations in sessions that stayed alive, without proving what happened continuously between samples.
+The exact pinned SDK JNI sources were inspected for the statistics and current-track calls. The statistics wrapper uses a stack statistics structure and returns a Java sample; the current-track wrapper calls the core track-ID accessor. No retained native allocation was identified in those wrappers. This does not rule out a leak, retained allocator memory or buffering growth elsewhere in the SDK/core.
 
-At approximately 04:28 Eastern, another lightweight reading found approximately 715–716 MiB native allocation, 567 MiB RSS and 128 MiB process swap, with the same app process and boot identity. System available memory was approximately 119 MiB out of 1,670 MiB total, and approximately 134 MiB of the 800 MiB swap remained free. A short two-second CPU-counter sample used about 71% of the device's four-core capacity. These are separate accounting views and a brief CPU observation, not a matched performance benchmark. The supplied recent log contained no playback or cleanup failures. Reduced RSS alongside higher allocation and swap does not establish recovery or a memory plateau. No screenshot, profiler or application restart was performed for this point.
+Screenshot capture bounds are now recorded separately from later diagnostic reads and file saves. In the final timed sample, the screenshot request ran from 05:59:35.98 to 05:59:48.58 Eastern, while visible camera clocks read approximately 05:59:29–32. Capture duration and camera-clock offsets prevent an exact live-edge-delay claim. Earlier screenshots without capture bounds must not use their file modification time as the reference clock.
 
-Around 05:00 Eastern, a 117-second sample captured four screenshots with all 13 crops changing at every interval and the same monitored app, codec, graphics and system processes. RSS was approximately 520–536 MiB during those samples; the latest native-allocation readings were approximately 737–739 MiB. The adjacent lightweight reading reported approximately 211 MiB process swap and 174 MiB system available memory. All visible camera clocks were close to one another in the final image. Screenshot capture bounds were not recorded for this sample, and the file was saved after further diagnostic reads, so its modification time must not be used to calculate live-edge latency. The later observer now records capture-start/end times for future samples. No camera or TV state was changed.
-
-A separate three-second, single-frame RTSP probe of a wider 1536 × 576 feed returned a current image on the host. Camera clocks were read without changing them, and the TV's visible timestamps were close to the current reference during a subsequent screenshot. These point checks did not demonstrate a large accumulated playback delay; they are not a continuous or precisely synchronized latency benchmark. No encoder settings or TV views were changed.
+A separate three-second, single-frame RTSP probe of a wider 1536 × 576 feed returned a current image on the host. Camera clocks were read without changing them. These point checks did not demonstrate a large accumulated playback delay; they are not a continuous or precisely synchronized latency benchmark. No encoder settings or TV views were changed.
 
 The pinned [VLC core decoder implementation](https://code.videolan.org/videolan/vlc/-/blob/84177b2273abc5c4300234e6e18b55a4d2dd5a03/src/input/decoder.c#L2036) has a 400 MiB FIFO reset threshold for unpaced input and a separate count-based pacing branch. This is not an application-wide memory limit, and source inspection does not establish which branch or queue sizes were present in the observed sessions. A 500 ms network-cache setting must not be described as a hard native-memory bound. No decoder-FIFO patch or arbitrary compressed-packet dropping has been introduced.
 
-The user confirmed all 13 physical-TV pictures looked normal after the original test. That point-in-time confirmation is recorded in the 0.2.5 documentation and release notes. Neither it nor this passive sample establishes an overnight presentation or latency result.
+The user confirmed all 13 physical-TV pictures looked normal after the original test. That point-in-time confirmation is recorded in the 0.2.5 documentation and release notes. Neither it nor these passive samples establish an uninterrupted overnight presentation or latency result.
 
 ## Remaining work
 
