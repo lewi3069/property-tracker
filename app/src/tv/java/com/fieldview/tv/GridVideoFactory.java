@@ -16,21 +16,19 @@ import java.util.concurrent.Executors;
 
 /** Shared native runtime, one silent software-decoded RTSP player per dense-grid tile. */
 final class GridVideoFactory {
-    private static LibVLC library;
-    private static int references;
+    private static final Handler main = new Handler(Looper.getMainLooper());
     private static final ExecutorService retirements=Executors.newSingleThreadExecutor(task -> {
         Thread thread=new Thread(task,"PropertyTracker-VideoRelease");thread.setDaemon(true);return thread;
     });
+    private static final SharedVideoRuntime<LibVLC> runtimes = new SharedVideoRuntime<>(
+            retirements, task -> main.post(task), LibVLC::release);
     static GridVideoSession create(Context context) { return new Session(context); }
     private static LibVLC acquire(Context context) {
-        if(library==null) library=new LibVLC(context.getApplicationContext(),new ArrayList<>(Arrays.asList(
+        return runtimes.acquire(() -> new LibVLC(context.getApplicationContext(),new ArrayList<>(Arrays.asList(
                 "--quiet","--no-audio","--no-video-title-show","--no-osd","--rtsp-tcp",
-                "--network-caching=500","--avcodec-threads=1","--android-display-chroma=RV32")));
-        references++;return library;
+                "--network-caching=500","--avcodec-threads=1","--android-display-chroma=RV32"))));
     }
-    private static void relinquish() { if(--references==0) { LibVLC previous=library;library=null;previous.release(); } }
     private static final class Session implements GridVideoSession {
-        private final Handler main=new Handler(Looper.getMainLooper());
         private final VLCVideoLayout layout;
         private final LibVLC runtime;
         private MediaPlayer player;
@@ -80,7 +78,7 @@ final class GridVideoFactory {
                     android.util.Log.w("FieldviewPlayer","event=retirement_failed");
                 } finally {
                     try { if(oldMedia!=null)oldMedia.release(); }
-                    finally { main.post(() -> { try { relinquish(); } finally { complete.run(); } }); }
+                    finally { main.post(() -> runtimes.release(complete)); }
                 }
             });
         }

@@ -246,6 +246,29 @@ public class FullscreenLayoutTest {
             assertNull(field(CameraTile.class, "player").get(single));
         } finally { controller.pause().stop().destroy(); }
     }
+    private void assertUnsupportedDenseFlagUsesStandardPlayback(String model, int count) throws Exception {
+        ActivityController<MainActivity> controller = open(9, model);
+        try {
+            MainActivity activity = controller.get();
+            AppConfig config = (AppConfig) field(MainActivity.class, "config").get(activity);
+            config.textureGrid = true; config.denseGrid = true; config.useMainStream = true;
+            field(MainActivity.class, "setupOnly").set(activity, false);
+            long now = System.currentTimeMillis(); selector(activity).activity("camera-1", now, now + 30_000);
+            invoke(activity, "render");
+            assertEquals(count, tiles(activity).size());
+            for (CameraTile tile : tiles(activity).values()) assertFalse(tile.usesNativeGrid());
+            assertEquals(config.cameras.get(1).streamUri(true), field(CameraTile.class, "activeUri").get(tiles(activity).get("camera-1")));
+        } finally { controller.pause().stop().destroy(); }
+    }
+    @Test public void excludedModelCannotActivateNativePlaybackFromASavedDenseFlag() throws Exception {
+        assertUnsupportedDenseFlagUsesStandardPlayback("AFTMM", 4);
+    }
+    @Test public void legacyStickCannotActivateNativePlaybackFromASavedDenseFlag() throws Exception {
+        assertUnsupportedDenseFlagUsesStandardPlayback("AFTT", 2);
+    }
+    @Test @Config(sdk = 23) public void oldAndroidCannotActivateNativePlaybackFromASavedDenseFlag() throws Exception {
+        assertUnsupportedDenseFlagUsesStandardPlayback("AFTKM", 4);
+    }
     @Test public void thirteenCameraCenterAndPerimeterFillTheScreenWithoutOverlappingAndPinUsesSurface() throws Exception {
         ActivityController<MainActivity> controller = open(13,"AFTKM");
         try {

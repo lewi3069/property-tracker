@@ -67,6 +67,24 @@ public class PhoneUiTest {
             org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog().dismiss();
         } finally {controller.pause().stop().destroy();}
     }
+    @Test public void tvDensePreferenceCannotChangePhoneEngineOrEnlargedQuality() throws Exception {
+        ActivityController<MainActivity> controller = open();
+        try {
+            MainActivity activity = controller.get();
+            Memory.config.textureGrid = true; Memory.config.denseGrid = true; Memory.config.useMainStream = true;
+            ViewSelector selected = (ViewSelector) field(MainActivity.class, "selector").get(activity);
+            long now = System.currentTimeMillis(); selected.activity("camera-1", now, now + 30_000);
+            invoke(activity, "render");
+            CameraWall wall = activity.findViewById(R.id.camera_wall);
+            CameraTile featured = null;
+            for (int i = 0; i < wall.getChildCount(); i++) {
+                CameraTile tile = (CameraTile) wall.getChildAt(i); assertFalse(tile.usesNativeGrid());
+                if ("Enlarge Camera 1".contentEquals(tile.getContentDescription())) featured = tile;
+            }
+            assertNotNull(featured);
+            assertEquals(Memory.config.cameras.get(1).streamUri(true), field(CameraTile.class, "activeUri").get(featured));
+        } finally { controller.pause().stop().destroy(); }
+    }
     @Test public void privacyPolicyIsBundledAndReadableWithoutAConfiguredCamera() throws Exception {
         ActivityController<MainActivity> controller=open();
         try {

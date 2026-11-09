@@ -333,6 +333,8 @@ public final class MainActivity extends Activity {
         if (layoutOverrideUntil != 0) status += "  ·  temporary layout";
         if (!status.contentEquals(footer.getText())) footer.setText(status);
         boolean textureGrid = config.textureGrid && selection.visible.size() > 1;
+        boolean nativeGrid = BuildConfig.TV_INTERFACE && Build.VERSION.SDK_INT >= 26
+                && config.denseGrid && textureGrid && playbackLimits.maxVisible == 13;
         String nextSignature = selection.reason + selection.visible + selection.featured + config.useMainStream + fullscreen + textureGrid + config.denseGrid;
         if (signature.equals(nextSignature)) return;
         signature = nextSignature;
@@ -342,7 +344,7 @@ public final class MainActivity extends Activity {
         while (iterator.hasNext()) {
             Map.Entry<String, CameraTile> entry = iterator.next();
             if (!selection.visible.contains(entry.getKey()) || entry.getValue().usesTexture() != textureGrid
-                    || entry.getValue().usesNativeGrid() != (BuildConfig.TV_INTERFACE && config.denseGrid && textureGrid)) {
+                    || entry.getValue().usesNativeGrid() != nativeGrid) {
                 entry.getValue().release(); wall.removeView(entry.getValue()); iterator.remove();
             }
         }
@@ -357,7 +359,7 @@ public final class MainActivity extends Activity {
             CameraTile tile = tiles.get(id);
             if (tile == null) {
                 tile = new CameraTile(this, camera.name, false, textureGrid);
-                tile.setNativeGrid(BuildConfig.TV_INTERFACE && config.denseGrid);
+                tile.setNativeGrid(nativeGrid);
                 tile.configureStartup(startupCoordinator, id);
                 tile.setOnClickListener(view -> {
                     if (!BuildConfig.TV_INTERFACE && ViewSelector.PIN.equals(selector.snapshot(System.currentTimeMillis()).mode)) showPhoneControls();
@@ -369,7 +371,7 @@ public final class MainActivity extends Activity {
             boolean featured = selection.featured.contains(id);
             tile.setFullscreen(fullscreen, !pinned && selection.visible.size() > 1);
             tile.setFeatured(featured);
-            boolean main = config.useMainStream && featured && !(config.denseGrid && selection.visible.size() > 1);
+            boolean main = config.useMainStream && featured && !nativeGrid;
             String stream = camera.streamUri(main);
             tile.play(stream, !stream.equals(camera.streamUri(false)));
             ordered.add(tile);

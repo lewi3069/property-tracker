@@ -8,6 +8,8 @@ Property Tracker is a native Android APK for Android-based Fire TV sticks and NV
 
 Version 0.2.5 adds an **opt-in 13-camera TV layout**: one large center camera with 12 around it, plus a default center selection. Enable **Layout → Experimental larger layouts**, then choose 13. This uses native software decoding and existing substreams; ordinary playback limits remain the default. See [implementation, device results and remaining limits](docs/PLAYBACK-025.md).
 
+Development source is 0.2.6; the downloadable TV release remains 0.2.5. The [overnight review](docs/OVERNIGHT-REVIEW-2026-11-09.md) records playback-profile and native shutdown fixes, host validation, passive device observations and remaining memory questions. These candidate changes have not been installed on the TVs.
+
 Version 0.2.4 opens the TV app directly into the selected fullscreen camera layout. Press **Back** to reveal the controls. Empty-camera setup keeps its controls visible, and phone startup keeps its existing behavior.
 
 Version 0.2.3 stages camera startup and reconnects through a two-attempt queue, adds retry jitter and per-camera diagnostics, and keeps detection heartbeats from changing motion priority. **Layout → Experimental grid compatibility** enables an opt-in TextureView grid; single-camera and floating playback retain SurfaceView. The experiment defaults off and retains existing device limits. See [implementation and validation limits](docs/PLAYBACK-023.md).
