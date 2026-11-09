@@ -22,6 +22,8 @@ The native-view allocation change also passed a subsequent [complete Linux CI ru
 
 The cleanup-exception handling and fourth summary test then passed another [complete Linux CI run](https://github.com/lewi3069/property-tracker/actions/runs/42590568814) for source commit `1812cd4`.
 
+The sizing diagnostics passed a further [complete Linux CI run](https://github.com/lewi3069/property-tracker/actions/runs/42598332795) for source commit `9683b8e`, including 112 TV/core cases, 14 phone cases and the four diagnostic-summary checks.
+
 The new `scripts/verify-debug-apks.py` also passed against the local candidate builds. It checks package/version identities, API levels, ZIP integrity, the six expected TV ARM libraries and the absence of native libraries in the phone target. The Windows bootstrap now downloads Java 21 directly, avoiding the previous Java 17 download followed by a separate Java 21 setup. The build wrapper fails clearly if that required test runtime is absent. PowerShell parsing and an invocation of the updated wrapper passed locally; a complete fresh Windows toolchain download was not repeated.
 
 Both local candidate APK signatures verified with the original local debug certificate. The TV APK has valid v1 and v2 signatures, including the v1 signing path required by its API-22 minimum; the API-26-minimum phone APK has a valid v2 signature. The existing 0.2.5 download's SHA-256 was unchanged. No candidate APK was copied to the download directory, installed or published.
