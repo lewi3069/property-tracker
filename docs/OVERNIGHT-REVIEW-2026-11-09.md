@@ -23,6 +23,14 @@ The cleanup-exception handling and fourth summary test then passed another [comp
 
 The new `scripts/verify-debug-apks.py` also passed against the local candidate builds. It checks package/version identities, API levels, ZIP integrity, the six expected TV ARM libraries and the absence of native libraries in the phone target. The Windows bootstrap now downloads Java 21 directly, avoiding the previous Java 17 download followed by a separate Java 21 setup. The build wrapper fails clearly if that required test runtime is absent. PowerShell parsing and an invocation of the updated wrapper passed locally; a complete fresh Windows toolchain download was not repeated.
 
+Both local candidate APK signatures verified with the original local debug certificate. The TV APK has valid v1 and v2 signatures, including the v1 signing path required by its API-22 minimum; the API-26-minimum phone APK has a valid v2 signature. The existing 0.2.5 download's SHA-256 was unchanged. No candidate APK was copied to the download directory, installed or published.
+
+## Resource limits reviewed
+
+The existing admission queue permits two concurrent startups and blocks new admission during native retirement. Default AFTT, affected AFTMM/AFTKM and low-memory profiles retain their conservative budgets; thirteen-feed native playback remains an explicit eligible-TV experiment. Media3's 2 MiB grid and 8 MiB enlarged buffer targets do not cap total process memory or the native backend.
+
+Control-message handling retains its existing bounds: an 8 KiB MQTT payload check, 64 pending UI messages drained eight at a time, 256 recent event IDs and 128 recent location identities. Expired commands and retained control messages are rejected. These bound the application's command handoff and policy maps, not every allocation in the MQTT or video libraries. Existing host cases cover burst handling, late messages, startup admission and reconnect deadlines. No new playback or broker policy was introduced during this pass.
+
 ## Passive observation of the installed version
 
 The AFTKM viewer was already awake and displaying Property Tracker. A read-only 117-second observation captured four screenshots; all 13 camera crops changed between every sample. The app, codec, graphics and system process IDs and boot identity matched the earlier final-install observation. Recent displayed-picture counters were advancing. This is evidence of a still-running process and current playback, not continuous observation throughout the intervening hours.
@@ -38,6 +46,8 @@ At approximately 03:22 Eastern, another 90-second sample had three screenshots w
 At approximately 04:00 Eastern, a lighter resource/log reading found the same app process and boot identity, approximately 602 MiB RSS, 66 MiB process swap and 692–693 MiB native allocation. The supplied log covered about four and a half minutes, with health records from 13 camera attempts and no start, retry, release, stall or cleanup-failure events. Displayed counters advanced in that interval. No screenshots or profiler were taken for this point, so it does not add physical presentation evidence.
 
 All 13 camera/session/attempt keys matched those in the earlier 03:22 resource log. These matching endpoint samples narrow the next investigation toward retained allocations in sessions that stayed alive, without proving what happened continuously between samples.
+
+At approximately 04:28 Eastern, another lightweight reading found approximately 715–716 MiB native allocation, 567 MiB RSS and 128 MiB process swap, with the same app process and boot identity. System available memory was approximately 119 MiB out of 1,670 MiB total, and approximately 134 MiB of the 800 MiB swap remained free. A short two-second CPU-counter sample used about 71% of the device's four-core capacity. These are separate accounting views and a brief CPU observation, not a matched performance benchmark. The supplied recent log contained no playback or cleanup failures. Reduced RSS alongside higher allocation and swap does not establish recovery or a memory plateau. No screenshot, profiler or application restart was performed for this point.
 
 A separate three-second, single-frame RTSP probe of a wider 1536 × 576 feed returned a current image on the host. Camera clocks were read without changing them, and the TV's visible timestamps were close to the current reference during a subsequent screenshot. These point checks did not demonstrate a large accumulated playback delay; they are not a continuous or precisely synchronized latency benchmark. No encoder settings or TV views were changed.
 
