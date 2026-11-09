@@ -19,6 +19,8 @@ The repository now has an Android CI workflow using pinned action commits, Java 
 
 The native-view allocation change also passed a subsequent [complete Linux CI run](https://github.com/lewi3069/property-tracker/actions/runs/42586963080) for source commit `214b6db`.
 
+The cleanup-exception handling and fourth summary test then passed another [complete Linux CI run](https://github.com/lewi3069/property-tracker/actions/runs/42590568814) for source commit `1812cd4`.
+
 The new `scripts/verify-debug-apks.py` also passed against the local candidate builds. It checks package/version identities, API levels, ZIP integrity, the six expected TV ARM libraries and the absence of native libraries in the phone target. The Windows bootstrap now downloads Java 21 directly, avoiding the previous Java 17 download followed by a separate Java 21 setup. The build wrapper fails clearly if that required test runtime is absent. PowerShell parsing and an invocation of the updated wrapper passed locally; a complete fresh Windows toolchain download was not repeated.
 
 ## Passive observation of the installed version
@@ -35,6 +37,8 @@ At approximately 03:22 Eastern, another 90-second sample had three screenshots w
 
 At approximately 04:00 Eastern, a lighter resource/log reading found the same app process and boot identity, approximately 602 MiB RSS, 66 MiB process swap and 692–693 MiB native allocation. The supplied log covered about four and a half minutes, with health records from 13 camera attempts and no start, retry, release, stall or cleanup-failure events. Displayed counters advanced in that interval. No screenshots or profiler were taken for this point, so it does not add physical presentation evidence.
 
+All 13 camera/session/attempt keys matched those in the earlier 03:22 resource log. These matching endpoint samples narrow the next investigation toward retained allocations in sessions that stayed alive, without proving what happened continuously between samples.
+
 A separate three-second, single-frame RTSP probe of a wider 1536 × 576 feed returned a current image on the host. Camera clocks were read without changing them, and the TV's visible timestamps were close to the current reference during a subsequent screenshot. These point checks did not demonstrate a large accumulated playback delay; they are not a continuous or precisely synchronized latency benchmark. No encoder settings or TV views were changed.
 
 The pinned [VLC core decoder implementation](https://code.videolan.org/videolan/vlc/-/blob/84177b2273abc5c4300234e6e18b55a4d2dd5a03/src/input/decoder.c#L2036) has a 400 MiB FIFO reset threshold for unpaced input and a separate count-based pacing branch. This is not an application-wide memory limit, and source inspection does not establish which branch or queue sizes were present in the observed sessions. A 500 ms network-cache setting must not be described as a hard native-memory bound. No decoder-FIFO patch or arbitrary compressed-packet dropping has been introduced.
@@ -46,6 +50,8 @@ The user confirmed all 13 physical-TV pictures looked normal after the original 
 Continue passive memory/counter trends while the viewer is already open. Investigate sustained growth before raising default budgets or making CPU/frame-quality changes. Validate the 0.2.6 candidate's native shutdown and unsupported-profile behavior on hardware during an authorized interactive test. Longer uninterrupted presentation, live latency, fault recovery, Float/Plex coexistence and other hardware remain separate checks.
 
 The [controlled native-memory comparison plan](NATIVE-MEMORY-VALIDATION.md) separates steady playback from camera-replacement and shutdown tests. It has not been run during the passive overnight review.
+
+The source/lifecycle review also retained the existing behavior: hidden Activities stop their tick, MQTT inbox/connection and wall players; returning from Float closes its service before admitting wall playback; unchanged selection signatures avoid rebuilding the wall on each tick. Existing passing cases cover thirteen-feed default-center restoration, motion expiry and refresh, manual pin precedence, floating-default restoration, sleep/redelivery handling and phone API-35/36 layouts. These host checks do not establish live Home Assistant delivery or device playback behavior.
 
 A read-only inventory identified a 32-bit ARM app runtime and a Perfetto executable on the observed device, but no `heapprofd` executable at its standard system path. The installed debug package permits `run-as` access. A native allocation trace therefore needs a suitable profiling method or another controlled test device; no profiler, heap dump or process signal was started during these observations.
 
