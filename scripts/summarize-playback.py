@@ -5,6 +5,7 @@ import pathlib
 import re
 
 EVENT = re.compile(r'^\s*(\d+\.\d+)\s+\d+\s+\d+\s+[A-Z]\s+FieldviewPlayer:\s+camera=([A-Za-z0-9_-]{1,80}) session=([a-f0-9]{8}) attempt=(\d+) view=(wall|float) profile=(main|sub) event=([a-z_]+)\b(.*)$')
+GLOBAL_EVENT = re.compile(r'^\s*(\d+\.\d+)\s+\d+\s+\d+\s+[A-Z]\s+FieldviewPlayer:\s+event=(retirement_failed)\b(.*)$')
 INTEGER_FIELDS = ('startup_ms', 'state', 'frame_silent_ms', 'buffered_ms', 'submitted_frames',
                   'decoder_rendered', 'dropped', 'media_buffer_bytes', 'native_heap_kib', 'java_heap_kib',
                   'native_decoded', 'native_displayed', 'native_lost', 'native_input_bytes',
@@ -15,7 +16,17 @@ def summarize(lines):
     attempts = {}
     inflight = set()
     maximum = 0
+    global_events = {}
+    retirement_stages = {}
     for line in lines:
+        global_match = GLOBAL_EVENT.match(line)
+        if global_match:
+            _, event, rest = global_match.groups()
+            global_events[event] = global_events.get(event, 0) + 1
+            stage = re.search(r'\bstage=(views|player|media|runtime)(?=\s|$)', rest)
+            if stage:
+                retirement_stages[stage[1]] = retirement_stages.get(stage[1], 0) + 1
+            continue
         match = EVENT.match(line)
         if not match:
             continue
@@ -57,7 +68,8 @@ def summarize(lines):
                 if delta >= 0:
                     row['latest_native_displayed_fps'] = round(delta / (timestamp - previous['at']), 2)
             row['last_health'] = dict(at=timestamp, **numbers)
-    return dict(attempts=list(attempts.values()), max_inflight_starts_seen=maximum,
+    return dict(attempts=list(attempts.values()), global_events=global_events,
+                retirement_failures_by_stage=retirement_stages, max_inflight_starts_seen=maximum,
                 pending_starts_at_end=len(inflight), presentation_evidence='not_measured',
                 scope='Only recognized diagnostic events in the supplied log; partial captures can undercount startup concurrency.')
 

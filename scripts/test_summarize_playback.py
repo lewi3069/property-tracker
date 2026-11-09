@@ -42,6 +42,25 @@ class PlaybackSummaryTest(unittest.TestCase):
         self.assertNotIn('private', rendered)
         self.assertNotIn('rtsp://', rendered)
 
+    def test_cleanup_failures_are_counted_without_inventing_camera_attempts_or_copying_messages(self):
+        prefix = '1.000 100 100 W FieldviewPlayer: '
+        result = module.summarize([
+            prefix + 'event=retirement_failed',
+            prefix + 'event=retirement_failed stage=runtime detail=rtsp://user:password@host',
+            prefix + 'event=retirement_failed stage=media',
+            prefix + 'event=retirement_failed stage=player',
+            prefix + 'event=retirement_failed stage=views',
+            prefix + 'event=retirement_failed stage=runtime-secret',
+            prefix + 'event=unknown stage=runtime password=private'])
+        self.assertEqual({'retirement_failed': 6}, result['global_events'])
+        self.assertEqual({'runtime': 1, 'media': 1, 'player': 1, 'views': 1},
+                         result['retirement_failures_by_stage'])
+        self.assertEqual([], result['attempts'])
+        self.assertEqual(0, result['max_inflight_starts_seen'])
+        rendered = str(result)
+        for raw in ('password', 'private', 'rtsp://', 'secret', 'unknown'):
+            self.assertNotIn(raw, rendered)
+
 
 if __name__ == '__main__':
     unittest.main()

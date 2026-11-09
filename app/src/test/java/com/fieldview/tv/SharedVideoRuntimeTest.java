@@ -11,7 +11,7 @@ public class SharedVideoRuntimeTest {
         ArrayDeque<Runnable> worker = new ArrayDeque<>(), ui = new ArrayDeque<>();
         List<String> events = new ArrayList<>();
         SharedVideoRuntime<Object> pool = new SharedVideoRuntime<>(worker::add, ui::add,
-                value -> events.add("disposed"));
+                value -> events.add("disposed"), () -> fail("Unexpected cleanup failure"));
         Object first = pool.acquire(Object::new);
         assertSame(first, pool.acquire(() -> { throw new AssertionError("Unexpected extra runtime"); }));
         pool.release(() -> events.add("first-tile-done"));
@@ -28,16 +28,17 @@ public class SharedVideoRuntimeTest {
         ArrayDeque<Runnable> worker = new ArrayDeque<>(), ui = new ArrayDeque<>();
         List<Object> disposed = new ArrayList<>();
         List<String> completed = new ArrayList<>();
+        List<String> failures = new ArrayList<>();
         SharedVideoRuntime<Object> pool = new SharedVideoRuntime<>(worker::add, ui::add, value -> {
             disposed.add(value);
             if (disposed.size() == 1) throw new IllegalStateException("Simulated cleanup failure");
-        });
+        }, () -> failures.add("failed"));
         Object old = pool.acquire(Object::new);
         pool.release(() -> completed.add("old"));
         Object replacement = pool.acquire(Object::new);
         assertNotSame(old, replacement);
-        try { worker.remove().run(); fail("Expected simulated failure"); }
-        catch (IllegalStateException expected) { }
+        worker.remove().run();
+        assertEquals(List.of("failed"), failures);
         assertTrue(completed.isEmpty()); ui.remove().run();
         assertSame(replacement, pool.acquire(Object::new));
         pool.release(() -> completed.add("replacement-first"));
@@ -46,5 +47,6 @@ public class SharedVideoRuntimeTest {
         worker.remove().run(); ui.remove().run();
         assertEquals(List.of(old, replacement), disposed);
         assertEquals(List.of("old", "replacement-first", "replacement-last"), completed);
+        assertEquals(List.of("failed"), failures);
     }
 }

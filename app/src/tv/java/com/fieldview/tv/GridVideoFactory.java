@@ -21,7 +21,10 @@ final class GridVideoFactory {
         Thread thread=new Thread(task,"PropertyTracker-VideoRelease");thread.setDaemon(true);return thread;
     });
     private static final SharedVideoRuntime<LibVLC> runtimes = new SharedVideoRuntime<>(
-            retirements, task -> main.post(task), LibVLC::release);
+            retirements, task -> main.post(task), LibVLC::release, () -> retirementFailed("runtime"));
+    private static void retirementFailed(String stage) {
+        android.util.Log.w("FieldviewPlayer", "event=retirement_failed stage=" + stage);
+    }
     static GridVideoSession create(Context context) { return new Session(context); }
     private static LibVLC acquire(Context context) {
         return runtimes.acquire(() -> new LibVLC(context.getApplicationContext(),new ArrayList<>(Arrays.asList(
@@ -75,14 +78,18 @@ final class GridVideoFactory {
             if(closed) { complete.run();return; }
             closed=true;listener=null;main.removeCallbacks(poll);
             MediaPlayer oldPlayer=player;Media oldMedia=media;player=null;media=null;
-            if(oldPlayer!=null) { oldPlayer.setEventListener(null);try { oldPlayer.detachViews(); } catch(RuntimeException ignored) { } }
+            if(oldPlayer!=null) {
+                oldPlayer.setEventListener(null);
+                try { oldPlayer.detachViews(); } catch(RuntimeException ignored) { retirementFailed("views"); }
+            }
             retirements.execute(() -> {
                 try {
                     if(oldPlayer!=null)try { oldPlayer.stop(); } finally { oldPlayer.release(); }
                 } catch(RuntimeException ignored) {
-                    android.util.Log.w("FieldviewPlayer","event=retirement_failed");
+                    retirementFailed("player");
                 } finally {
                     try { if(oldMedia!=null)oldMedia.release(); }
+                    catch(RuntimeException ignored) { retirementFailed("media"); }
                     finally { main.post(() -> runtimes.release(complete)); }
                 }
             });

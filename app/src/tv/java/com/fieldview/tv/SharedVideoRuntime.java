@@ -9,11 +9,14 @@ final class SharedVideoRuntime<T> {
     private final Executor worker;
     private final Consumer<Runnable> post;
     private final Consumer<T> dispose;
+    private final Runnable reportFailure;
     private T current;
     private int references;
 
-    SharedVideoRuntime(Executor worker, Consumer<Runnable> post, Consumer<T> dispose) {
+    SharedVideoRuntime(Executor worker, Consumer<Runnable> post, Consumer<T> dispose,
+                       Runnable reportFailure) {
         this.worker = worker; this.post = post; this.dispose = dispose;
+        this.reportFailure = reportFailure;
     }
 
     T acquire(Supplier<T> create) {
@@ -28,6 +31,7 @@ final class SharedVideoRuntime<T> {
         T retired = current; current = null;
         worker.execute(() -> {
             try { dispose.accept(retired); }
+            catch (RuntimeException ignored) { reportFailure.run(); }
             finally { post.accept(complete); }
         });
     }
