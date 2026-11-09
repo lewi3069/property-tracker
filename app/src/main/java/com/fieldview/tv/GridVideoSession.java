@@ -6,10 +6,15 @@ import android.view.View;
 interface GridVideoSession {
     interface Listener { void frames(); void error(); }
     final class Stats {
-        final long decoded, displayed, lost, bytes;
+        final long decoded, displayed, lost, bytes, demuxBytes, mediaTimeMs;
         final int width, height;
         Stats(long decoded, long displayed, long lost, long bytes, int width, int height) {
+            this(decoded, displayed, lost, bytes, width, height, 0, -1);
+        }
+        Stats(long decoded, long displayed, long lost, long bytes, int width, int height,
+              long demuxBytes, long mediaTimeMs) {
             this.decoded=decoded;this.displayed=displayed;this.lost=lost;this.bytes=bytes;this.width=width;this.height=height;
+            this.demuxBytes=demuxBytes;this.mediaTimeMs=mediaTimeMs;
         }
     }
     View view();

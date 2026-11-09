@@ -4,6 +4,17 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class VideoProgressTest {
+    @Test public void twoSecondNativeSamplesRemainHealthyAndStillDetectStoppedPresentation() {
+        VideoProgress progress = new VideoProgress(0);
+        progress.rendered(500);
+        for (int t = 500; t <= 20_500; t += 2_000) {
+            progress.frame(t);
+            assertFalse(progress.stalled(t + 1_999));
+        }
+        assertTrue(progress.sustained());
+        assertFalse(progress.stalled(40_499));
+        assertTrue(progress.stalled(40_500));
+    }
     @Test public void startupRequiresAnActualRenderedFrame() {
         VideoProgress progress = new VideoProgress(1_000);
         progress.frame(20_000);

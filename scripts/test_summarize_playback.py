@@ -26,8 +26,10 @@ class PlaybackSummaryTest(unittest.TestCase):
         result = module.summarize([
             event(1, 'one', 'start', 'renderer=texture engine=native'),
             event(31, 'one', 'health', 'native_displayed=100 native_decoded=200'),
-            event(61, 'one', 'health', 'native_displayed=700 native_decoded=1400')])
+            event(61, 'one', 'health', 'native_displayed=700 native_decoded=1400 native_demux_bytes=10000 native_media_time_ms=30000')])
         self.assertEqual('native', result['attempts'][0]['engine'])
+        self.assertEqual(10000, result['attempts'][0]['last_health']['native_demux_bytes'])
+        self.assertEqual(30000, result['attempts'][0]['last_health']['native_media_time_ms'])
         self.assertEqual(20.0, result['attempts'][0]['latest_native_displayed_fps'])
         self.assertEqual('not_measured', result['presentation_evidence'])
 

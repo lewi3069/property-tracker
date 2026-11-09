@@ -34,7 +34,7 @@ final class GridVideoFactory {
         private MediaPlayer player;
         private Media media;
         private Listener listener;
-        private boolean closed;
+        private boolean closed, sawFrames;
         private Stats latest=new Stats(0,0,0,0,0,0);
         private final Runnable poll=new Runnable() {
             @Override public void run() {
@@ -44,10 +44,15 @@ final class GridVideoFactory {
                     Media.VideoTrack track=player.getCurrentVideoTrack();
                     Stats before=latest;
                     latest=new Stats(sample.decodedVideo,sample.displayedPictures,sample.lostPictures,sample.readBytes,
-                            track==null?0:track.width,track==null?0:track.height);
-                    if(latest.displayed>before.displayed&&listener!=null)listener.frames();
+                            track==null?0:track.width,track==null?0:track.height,
+                            sample.demuxReadBytes,player.getTime());
+                    if(latest.displayed>before.displayed) {
+                        sawFrames=true;
+                        if(listener!=null)listener.frames();
+                    }
                 }
-                if(!closed)main.postDelayed(this,500);
+                // Keep staged startup responsive; steady health needs no per-frame UI polling.
+                if(!closed)main.postDelayed(this,sawFrames?2_000:500);
             }
         };
         Session(Context context) { layout=new VLCVideoLayout(context);layout.setFocusable(false);runtime=acquire(context); }

@@ -278,6 +278,7 @@ public final class CameraTile extends FrameLayout {
             String message = diagnosticPrefix() + (stalledVideo ? "event=stalled " : "event=health ")
                     + "frame_silent_ms=" + currentProgress.silentFor(now) + " native_decoded=" + stats.decoded
                     + " native_displayed=" + stats.displayed + " native_lost=" + stats.lost + " native_input_bytes=" + stats.bytes
+                    + " native_demux_bytes=" + stats.demuxBytes + " native_media_time_ms=" + stats.mediaTimeMs
                     + " native_heap_kib=" + android.os.Debug.getNativeHeapAllocatedSize() / 1024;
             if (stalledVideo) Log.w("FieldviewPlayer", message); else Log.i("FieldviewPlayer", message);
             return;
