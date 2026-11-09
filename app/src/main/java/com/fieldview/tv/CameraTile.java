@@ -48,7 +48,7 @@ public final class CameraTile extends FrameLayout {
     private int generation;
     private long attemptStartedAt;
     private boolean mainStream;
-    private boolean nativeGrid;
+    private final boolean nativeGrid;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private ExoPlayer player;
     private String activeUri;
@@ -68,18 +68,26 @@ public final class CameraTile extends FrameLayout {
         this(context, name, floating, false);
     }
     CameraTile(Context context, String name, boolean floating, boolean textureGrid) {
+        this(context, name, floating, textureGrid, false);
+    }
+    CameraTile(Context context, String name, boolean floating, boolean textureGrid, boolean nativeGrid) {
         super(context);
         this.floating = floating;
         this.texture = !floating && textureGrid;
+        this.nativeGrid = !floating && texture && nativeGrid;
         setId(View.generateViewId()); setFocusable(true); setClickable(true);
         cameraLabel = "tile-" + getId();
         setContentDescription("Enlarge " + name);
         setPadding(dp(3), dp(3), dp(3), dp(3));
-        surface = floating || texture ? (PlayerView) LayoutInflater.from(context).inflate(texture ? R.layout.grid_texture_player : R.layout.floating_player, this, false) : new PlayerView(context);
-        surface.setUseController(false);
-        surface.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT);
-        surface.setFocusable(false); surface.setDescendantFocusability(FOCUS_BLOCK_DESCENDANTS);
-        addView(surface, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+        // Native playback supplies its own view. Avoid inflating a hidden Media3 hierarchy per tile.
+        if (this.nativeGrid) surface = null;
+        else {
+            surface = floating || texture ? (PlayerView) LayoutInflater.from(context).inflate(texture ? R.layout.grid_texture_player : R.layout.floating_player, this, false) : new PlayerView(context);
+            surface.setUseController(false);
+            surface.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT);
+            surface.setFocusable(false); surface.setDescendantFocusability(FOCUS_BLOCK_DESCENDANTS);
+            addView(surface, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+        }
         status = new TextView(context); status.setTextColor(0xFFE3EFDB); status.setTextSize(12);
         status.setMaxLines(3);
         status.setPadding(dp(10), dp(5), dp(10), dp(5)); status.setBackgroundColor(0xB0000000);
@@ -91,7 +99,6 @@ public final class CameraTile extends FrameLayout {
     public void setFeatured(boolean value) { featured = value; if (startup != null) startup.prioritize(value); updateBorder(); }
     boolean usesTexture() { return texture; }
     boolean usesNativeGrid() { return nativeGrid; }
-    void setNativeGrid(boolean value) { nativeGrid = !floating && texture && value; if(nativeGrid)surface.setVisibility(View.GONE); }
     /** Set before play; wall playback and HEVC retain the normal decoder policy. */
     public void setSoftwareFloatingH264(boolean value) { softwareFloatingH264 = floating && value; }
     static MediaCodecSelector decoderSelector(boolean preferSoftware, MediaCodecSelector regular, MediaCodecSelector software) {
@@ -224,7 +231,6 @@ public final class CameraTile extends FrameLayout {
 
     private void startNativeGrid(VideoProgress attemptProgress) {
         GridVideoSession attempt = GridVideoFactory.create(getContext()); gridSession = attempt;
-        surface.setVisibility(View.GONE);
         addView(attempt.view(), 0, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         Log.i("FieldviewPlayer", diagnosticPrefix() + "event=decoder name=libvlc.avcodec.software");
         attempt.start(activeUri, new GridVideoSession.Listener() {
@@ -333,7 +339,8 @@ public final class CameraTile extends FrameLayout {
             Runnable unblocked = coordinator.beginRelease();
             Log.i("FieldviewPlayer", diagnosticPrefix() + "event=release");
             previousGrid.close(() -> { if (previousStartup != null) previousStartup.finish(); unblocked.run(); });
-            removeView(previousGrid.view()); surface.setVisibility(View.VISIBLE);
+            removeView(previousGrid.view());
+            if (surface != null) surface.setVisibility(View.VISIBLE);
             return;
         }
         // Detaching/releasing can dispatch callbacks. The old instance must already
@@ -341,7 +348,7 @@ public final class CameraTile extends FrameLayout {
         try {
             if (previous != null) {
                 Log.i("FieldviewPlayer", diagnosticPrefix() + "event=release");
-                try { surface.setPlayer(null); } finally { previous.release(); }
+                try { if (surface != null) surface.setPlayer(null); } finally { previous.release(); }
             }
         } finally { if (previousStartup != null) previousStartup.finish(); }
     }

@@ -29,6 +29,20 @@ import static org.robolectric.Shadows.shadowOf;
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = 28)
 public class CameraTileTest {
+    @Test public void nativeGridAvoidsAnUnusedMedia3HierarchyAndFloatingRetainsItsSurface() throws Exception {
+        ActivityController<Activity> controller = Robolectric.buildActivity(Activity.class).setup();
+        try {
+            CameraTile nativeTile = new CameraTile(controller.get(), "Native", false, true, true);
+            assertTrue(nativeTile.usesNativeGrid());
+            assertNull(field("surface").get(nativeTile));
+            assertEquals(1, nativeTile.getChildCount()); // Only the status view before native playback starts.
+            CameraTile floating = new CameraTile(controller.get(), "Float", true, true, true);
+            assertFalse(floating.usesNativeGrid());
+            androidx.media3.ui.PlayerView view = (androidx.media3.ui.PlayerView) field("surface").get(floating);
+            assertTrue(view.getVideoSurfaceView() instanceof android.view.SurfaceView);
+            nativeTile.release(); floating.release();
+        } finally { controller.pause().stop().destroy(); }
+    }
     @Test public void retiredNativeAttemptCannotCancelTheReplacementStartup() throws Exception {
         ActivityController<Activity> controller=Robolectric.buildActivity(Activity.class).setup();
         CameraTile tile=new CameraTile(controller.get(),"Native test");

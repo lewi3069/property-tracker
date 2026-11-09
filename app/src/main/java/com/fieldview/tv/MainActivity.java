@@ -358,8 +358,7 @@ public final class MainActivity extends Activity {
             AppConfig.Camera camera = camera(id);
             CameraTile tile = tiles.get(id);
             if (tile == null) {
-                tile = new CameraTile(this, camera.name, false, textureGrid);
-                tile.setNativeGrid(nativeGrid);
+                tile = new CameraTile(this, camera.name, false, textureGrid, nativeGrid);
                 tile.configureStartup(startupCoordinator, id);
                 tile.setOnClickListener(view -> {
                     if (!BuildConfig.TV_INTERFACE && ViewSelector.PIN.equals(selector.snapshot(System.currentTimeMillis()).mode)) showPhoneControls();
@@ -677,7 +676,7 @@ public final class MainActivity extends Activity {
         EditText broker = field(form, "MQTT broker URI (leave empty to disable)", config.broker, false); broker.setHint("tcp://192.0.2.2:1883");
         EditText user = field(form, "MQTT username", config.brokerUser, false);
         EditText password = field(form, "MQTT password", config.brokerPassword, true);
-        TextView info = label("Commands use fieldview/<site>/<screen>/command. Configure a dedicated broker login. Changes operate while Fieldview is open.", 13); form.addView(info);
+        TextView info = label("Commands use fieldview/<site>/<screen>/command. Configure a dedicated broker login. Changes operate while Property Tracker is open.", 13); form.addView(info);
         TvFormDialog dialog = new TvFormDialog(this, "Home Assistant · MQTT", form);
         dialog.saveButton().setText("Save settings");
         dialog.saveButton().setOnClickListener(view -> {
