@@ -55,10 +55,13 @@ Native allocation continued upward in the installed **0.2.5** process:
 | About 06:00 | 781–783 | Two screenshots over 65 seconds; all 13 crops changed |
 | 06:28 | 802–803 | Resource and recent health-counter reading |
 | About 07:00 | 836–838 | Two screenshots over 64 seconds; all 13 crops changed |
+| 07:28 | 860–862 | Final resource and recent health-counter reading |
 
 These counters describe native allocations, not resident RAM. At 04:00, process RSS was approximately 602 MiB and process swap 66 MiB. At 05:28, RSS was approximately 379 MiB and process swap 357 MiB. The adjacent 05:58 resource point reported approximately 385 MiB RSS, 375 MiB process swap, 256 MiB system available memory and 49 MiB free out of 800 MiB system swap. Reduced RSS with higher swap and native allocation does not establish recovery or a memory plateau. Native allocation, RSS, PSS and swap are different accounting views and must not be added together.
 
 At 06:58, the lightweight resource point reported approximately 469 MiB RSS, 352 MiB process swap, 258 MiB system available memory and 84 MiB free system swap. Thread count remained 78. These variations in residency and swap did not stop the increase in native allocation; the cause remains unidentified.
+
+The final lightweight reading at 07:28 found the same viewer process and boot identity, approximately 472 MiB RSS, 374 MiB process swap, 240 MiB system available memory and 42 MiB free system swap. Thread count was still 78. Its brief CPU sample was approximately 76% of four-core capacity; the supplied recent log contained no playback or cleanup failures. No additional screenshot or profiler was taken at closeout.
 
 Brief CPU readings ranged around 2.5–3 of four cores. The 05:58 reading was approximately 66% of four-core capacity. The thermal service reported status 0 and current HAL temperatures of approximately 65.9°C CPU and 42.8°C GPU; cached temperatures were different. These are short resource readings, not matched performance benchmarks or evidence of a candidate CPU improvement.
 
@@ -76,7 +79,7 @@ The user confirmed all 13 physical-TV pictures looked normal after the original 
 
 ## Remaining work
 
-Continue passive memory/counter trends while the viewer is already open. Investigate sustained growth before raising default budgets or making CPU/frame-quality changes. Validate the 0.2.6 candidate's native shutdown and unsupported-profile behavior on hardware during an authorized interactive test. Longer uninterrupted presentation, live latency, fault recovery, Float/Plex coexistence and other hardware remain separate checks.
+Investigate sustained native growth in a controlled test window before raising default budgets or making CPU/frame-quality changes. Validate the 0.2.6 candidate's native shutdown and unsupported-profile behavior on hardware during an authorized interactive test. Longer uninterrupted presentation, live latency, fault recovery, Float/Plex coexistence and other hardware remain separate checks. The overnight review ended with a host-verified candidate and an unresolved native-memory limit; no candidate APK was installed or published.
 
 The [controlled native-memory comparison plan](NATIVE-MEMORY-VALIDATION.md) separates steady playback from camera-replacement and shutdown tests. It has not been run during the passive overnight review.
 
