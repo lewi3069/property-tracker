@@ -1,8 +1,8 @@
 # Overnight reliability review — November 9, 2026
 
-**Main unresolved finding:** all 13 pictures continued advancing during sampled windows, but native allocation kept rising. Long-term memory stability has not been established, and none of the candidate improvements has been installed on the observed TV.
+**Main unresolved finding:** all 13 pictures continued advancing during sampled windows, but native allocation kept rising. Long-term memory stability has not been established, and none of the candidate improvements had been installed on the observed TV during these overnight measurements.
 
-Development source is now **0.2.6 / code 27**. The installed and downloadable TV APK remains **0.2.5**; the phone download remains 0.2.0. No APK was installed or published during this review. Google Play work remains paused.
+At overnight closeout, development source was **0.2.6 / code 27**, the observed installed/downloadable TV APK was **0.2.5**, and the phone download remained 0.2.0. No APK was installed or published during the overnight review. The subsequent user-authorized [0.2.6 installation record](DEPLOYMENT-026.md) documents five TV updates performed afterward. Google Play work remains paused.
 
 ## Changes verified on the host
 
