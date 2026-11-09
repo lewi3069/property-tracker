@@ -18,10 +18,12 @@ For each run, record startup, 5-, 15-, 30- and 60-minute points, extending the t
 
 - Native allocated bytes, process RSS, PSS and swap as separate accounting measures, plus system available memory. Do not sum these into one memory figure.
 - App and relevant codec/compositor process IDs, thread count, CPU and thermal readings.
-- Per-camera attempt IDs, startup latency, retries, stalls, cleanup failures and decoded/displayed counter deltas.
+- Per-camera attempt IDs, tile pixel dimensions and resize counters, startup latency, retries, stalls, cleanup failures and decoded/displayed counter deltas. The candidate's resize counter includes the initial positive tile size; it does not count position-only changes or measure native-buffer reallocations.
 - Periodic actual-picture checks and visible camera-clock age against a reference. Submission/display counters and SDK media time are not live-edge latency measurements.
 
 Use comparable sampling overhead in both runs. Prefer lightweight logs/status reads between occasional screenshots and fuller memory dumps. Retain numeric summaries publicly only after excluding operator-specific data; raw captures remain local.
+
+Record screenshot capture-start/end times separately from later processing and file-save times. The file's modification time can include subsequent ADB reads and is not a reliable reference for the visible camera clock.
 
 Separate three cases: stable playback with unchanged sessions, normal motion-driven camera replacement, and repeated wall/solo/return/Float lifecycle transitions. Wait for release completion before each new transition. Verify that startup admission remains blocked through worker disposal, that failures are counted, that completed callbacks do not affect replacement sessions and that the expected default center returns after activity expires. No background recycling timer should conceal a growing allocation trend.
 

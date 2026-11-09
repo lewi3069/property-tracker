@@ -29,6 +29,29 @@ import static org.robolectric.Shadows.shadowOf;
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = 28)
 public class CameraTileTest {
+    @Test public void nativeHealthDistinguishesSizeChangesFromPositionOnlyChanges() throws Exception {
+        ActivityController<Activity> controller = Robolectric.buildActivity(Activity.class).setup();
+        CameraTile tile = new CameraTile(controller.get(), "Native", false, true, true);
+        try {
+            tile.layout(0, 0, 480, 270);
+            tile.layout(480, 270, 960, 540); // Same dimensions at a different position.
+            tile.layout(480, 270, 1440, 810);
+            tile.layout(480, 270, 1440, 810);
+            android.view.View view = new android.view.View(controller.get());
+            field("gridSession").set(tile, new GridVideoSession() {
+                public android.view.View view() { return view; }
+                public void start(String uri, Listener listener) { }
+                public Stats stats() { return new Stats(1, 1, 0, 0, 640, 360); }
+                public void close(Runnable complete) { complete.run(); }
+            });
+            field("progress").set(tile, new VideoProgress(SystemClock.elapsedRealtime()));
+            Method log = CameraTile.class.getDeclaredMethod("logVideoHealth", long.class, boolean.class);
+            log.setAccessible(true); log.invoke(tile, SystemClock.elapsedRealtime(), false);
+            String health = org.robolectric.shadows.ShadowLog.getLogsForTag("FieldviewPlayer").stream()
+                    .filter(item -> item.msg.contains("event=health")).reduce((first, last) -> last).orElseThrow().msg;
+            assertTrue(health, health.contains("tile_width=960 tile_height=540 tile_resizes=2"));
+        } finally { tile.release(); controller.pause().stop().destroy(); }
+    }
     @Test public void nativeGridAvoidsAnUnusedMedia3HierarchyAndFloatingRetainsItsSurface() throws Exception {
         ActivityController<Activity> controller = Robolectric.buildActivity(Activity.class).setup();
         try {

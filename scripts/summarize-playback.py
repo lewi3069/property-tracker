@@ -9,7 +9,7 @@ GLOBAL_EVENT = re.compile(r'^\s*(\d+\.\d+)\s+\d+\s+\d+\s+[A-Z]\s+FieldviewPlayer
 INTEGER_FIELDS = ('startup_ms', 'state', 'frame_silent_ms', 'buffered_ms', 'submitted_frames',
                   'decoder_rendered', 'dropped', 'media_buffer_bytes', 'native_heap_kib', 'java_heap_kib',
                   'native_decoded', 'native_displayed', 'native_lost', 'native_input_bytes',
-                  'native_demux_bytes', 'native_media_time_ms')
+                  'native_demux_bytes', 'native_media_time_ms', 'tile_width', 'tile_height', 'tile_resizes')
 
 
 def summarize(lines):

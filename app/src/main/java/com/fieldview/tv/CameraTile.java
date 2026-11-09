@@ -57,6 +57,7 @@ public final class CameraTile extends FrameLayout {
     private VideoProgress progress;
     private DefaultAllocator allocator;
     private long nextHealthLogAt;
+    private long nativeTileResizes;
     private int attempts, stalledRecoveries;
     private boolean released, featured, firstFrame, fullscreen, fullscreenFocusBorder, softwareFloatingH264;
 
@@ -99,6 +100,10 @@ public final class CameraTile extends FrameLayout {
     public void setFeatured(boolean value) { featured = value; if (startup != null) startup.prioritize(value); updateBorder(); }
     boolean usesTexture() { return texture; }
     boolean usesNativeGrid() { return nativeGrid; }
+    @Override protected void onSizeChanged(int width, int height, int oldWidth, int oldHeight) {
+        super.onSizeChanged(width, height, oldWidth, oldHeight);
+        if (nativeGrid && width > 0 && height > 0 && (width != oldWidth || height != oldHeight)) nativeTileResizes++;
+    }
     /** Set before play; wall playback and HEVC retain the normal decoder policy. */
     public void setSoftwareFloatingH264(boolean value) { softwareFloatingH264 = floating && value; }
     static MediaCodecSelector decoderSelector(boolean preferSoftware, MediaCodecSelector regular, MediaCodecSelector software) {
@@ -285,6 +290,7 @@ public final class CameraTile extends FrameLayout {
                     + "frame_silent_ms=" + currentProgress.silentFor(now) + " native_decoded=" + stats.decoded
                     + " native_displayed=" + stats.displayed + " native_lost=" + stats.lost + " native_input_bytes=" + stats.bytes
                     + " native_demux_bytes=" + stats.demuxBytes + " native_media_time_ms=" + stats.mediaTimeMs
+                    + " tile_width=" + getWidth() + " tile_height=" + getHeight() + " tile_resizes=" + nativeTileResizes
                     + " native_heap_kib=" + android.os.Debug.getNativeHeapAllocatedSize() / 1024;
             if (stalledVideo) Log.w("FieldviewPlayer", message); else Log.i("FieldviewPlayer", message);
             return;
