@@ -11,6 +11,12 @@ Development source is now **0.2.6 / code 27**. The installed and downloadable TV
 
 All **110 TV/core tests**, **14 phone tests** and **three diagnostic-summary tests** passed. Both debug APKs build. TV and phone lint report zero errors, with 34 and 47 warnings respectively. The TV candidate retains API-22 installation support and ARMv7/ARM64 libraries; the phone candidate has no native video libraries. The new native lifecycle and sampling code has not yet been exercised on physical hardware.
 
+## Repeatable build verification
+
+The repository now has an Android CI workflow using pinned action commits, Java 21, Gradle 8.11.1 and the required Android SDK packages on Ubuntu 24.04. Its [first complete Linux run passed](https://github.com/lewi3069/property-tracker/actions/runs/42580463373) for source commit `35a6ea1`: TV/phone tests, both APK builds and lint tasks, three diagnostic-summary checks, Windows script syntax and artifact compatibility checks. Test/lint reports are retained for seven days. It uses read-only repository permissions and a disposable debug signing key; it uploads reports rather than APKs or keys.
+
+The new `scripts/verify-debug-apks.py` also passed against the local candidate builds. It checks package/version identities, API levels, ZIP integrity, the six expected TV ARM libraries and the absence of native libraries in the phone target. The Windows bootstrap now downloads Java 21 directly, avoiding the previous Java 17 download followed by a separate Java 21 setup. The build wrapper fails clearly if that required test runtime is absent. PowerShell parsing and an invocation of the updated wrapper passed locally; a complete fresh Windows toolchain download was not repeated.
+
 ## Passive observation of the installed version
 
 The AFTKM viewer was already awake and displaying Property Tracker. A read-only 117-second observation captured four screenshots; all 13 camera crops changed between every sample. The app, codec, graphics and system process IDs and boot identity matched the earlier final-install observation. Recent displayed-picture counters were advancing. This is evidence of a still-running process and current playback, not continuous observation throughout the intervening hours.
