@@ -91,6 +91,7 @@ public class FullscreenLayoutTest {
         } finally { controller.pause().stop().destroy(); }
     }
     private ActivityController<MainActivity> open(int count, String model) throws Exception {
+        org.robolectric.util.ReflectionHelpers.setStaticField(android.os.Build.class, "MODEL", model);
         NoVideo.starts = 0;
         Intent intent = new Intent(RuntimeEnvironment.getApplication(), MainActivity.class)
                 .putExtra(MainActivity.EXTRA_SETUP_ONLY, true);
@@ -244,5 +245,29 @@ public class FullscreenLayoutTest {
             assertEquals(4, tiles(activity).size()); assertTrue(tiles(activity).get("camera-0").usesTexture());
             assertNull(field(CameraTile.class, "player").get(single));
         } finally { controller.pause().stop().destroy(); }
+    }
+    @Test public void thirteenCameraCenterAndPerimeterFillTheScreenWithoutOverlappingAndPinUsesSurface() throws Exception {
+        ActivityController<MainActivity> controller = open(13,"AFTKM");
+        try {
+            MainActivity activity=controller.get(); AppConfig config=(AppConfig)field(MainActivity.class,"config").get(activity);
+            for(int i=9;i<14;i++) { AppConfig.Camera camera=new AppConfig.Camera();camera.id="camera-"+i;camera.name="Camera "+i;camera.host="192.0.2.10";config.cameras.add(camera); }
+            config.textureGrid=true;config.denseGrid=true;config.spotlightCamera="camera-1";
+            field(MainActivity.class,"playbackLimits").set(activity,PlaybackLimits.forDevice("AFTKM",false,true));
+            invoke(activity,"resetSelector");field(MainActivity.class,"setupOnly").set(activity,false);field(MainActivity.class,"layoutFullscreen").set(activity,true);invoke(activity,"render");
+            assertFullLayout(activity,13);assertEquals("camera-1",selector(activity).snapshot(System.currentTimeMillis()).visible.get(0));
+            CameraTile center=tiles(activity).get("camera-1");assertEquals(480,center.getLeft());assertEquals(270,center.getTop());assertEquals(960,center.getWidth());assertEquals(540,center.getHeight());
+            long area=0;java.util.List<android.graphics.Rect> rectangles=new java.util.ArrayList<>();
+            for(CameraTile tile:tiles(activity).values()) {
+                assertTrue(tile.usesTexture());android.graphics.Rect r=new android.graphics.Rect(tile.getLeft(),tile.getTop(),tile.getRight(),tile.getBottom());
+                for(android.graphics.Rect previous:rectangles)assertFalse(android.graphics.Rect.intersects(previous,r));
+                rectangles.add(r);area+=(long)r.width()*r.height();
+            }
+            assertEquals(1920L*1080,area);
+            center.performClick();shadowOf(Looper.getMainLooper()).idle();assertFalse(tiles(activity).get("camera-1").usesTexture());
+            activity.onBackPressed();shadowOf(Looper.getMainLooper()).idle();assertFullLayout(activity,13);
+            config.denseGrid=false; invoke(activity,"showLayout");
+            ShadowAlertDialog.getLatestAlertDialog().getButton(AlertDialog.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle();
+            assertFullLayout(activity,4);
+        } finally {controller.pause().stop().destroy();}
     }
 }

@@ -113,3 +113,7 @@ The first implementation should deliver diagnostics and staged startup, followed
 ## Scope of this review
 
 No TV installation, navigation, camera encoding, Home Assistant automation, broker configuration or camera credential changed during this review. No new live playback or host regression result is claimed. The existing 0.2.2 mitigation remains the installed behavior; the stages above are proposed work.
+
+## Subsequent implementation
+
+Version 0.2.3 delivered staged startup and renderer diagnostics; 0.2.4 added fullscreen startup. The [0.2.5 trial](PLAYBACK-025.md) records the next hardware/platform-software failures and opt-in native backend. The longer soak, matched tinyCam workload, latency, fault recovery and transport-backlog gates above remain outstanding. The review-scope statement above describes the original review, not later authorized device work.

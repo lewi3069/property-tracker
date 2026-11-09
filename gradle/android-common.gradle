@@ -1,6 +1,6 @@
 android {
     namespace 'com.fieldview.tv'
-    compileSdk 35
+    compileSdk 36
     defaultConfig {
         targetSdk 35
         versionCode rootProject.ext.propertyTrackerVersionCode

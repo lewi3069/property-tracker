@@ -14,6 +14,8 @@ public final class AppConfig {
     public boolean useMainStream = true;
     public boolean softwareFloatingH264;
     public boolean textureGrid;
+    public boolean denseGrid;
+    public String spotlightCamera = "";
     public String site = BuildConfig.TV_INTERFACE ? "wrenhaven" : "home", display = BuildConfig.TV_INTERFACE ? "tv" : "phone", broker = "", brokerUser = "", brokerPassword = "";
     public String clientId = "fieldview-" + UUID.randomUUID().toString();
 
@@ -62,6 +64,7 @@ public final class AppConfig {
         return object.put("cameras", list).put("visibleCount", visibleCount).put("useMainStream", useMainStream)
                 .put("softwareFloatingH264", softwareFloatingH264)
                 .put("textureGrid", textureGrid)
+                .put("denseGrid", denseGrid).put("spotlightCamera", spotlightCamera)
                 .put("site", site).put("display", display).put("broker", broker).put("brokerUser", brokerUser)
                 .put("brokerPassword", brokerPassword).put("clientId", clientId);
     }
@@ -69,7 +72,9 @@ public final class AppConfig {
     public static AppConfig fromJson(JSONObject object) throws JSONException {
         AppConfig config = new AppConfig();
         config.textureGrid = object.optBoolean("textureGrid", false);
-        config.visibleCount = Math.max(1, Math.min(9, object.optInt("visibleCount", 4)));
+        config.denseGrid = object.optBoolean("denseGrid", false);
+        config.spotlightCamera = object.optString("spotlightCamera", "");
+        config.visibleCount = Math.max(1, Math.min(13, object.optInt("visibleCount", 4)));
         config.useMainStream = object.optBoolean("useMainStream", true);
         config.softwareFloatingH264 = object.optBoolean("softwareFloatingH264", false);
         config.site = object.optString("site", config.site);

@@ -22,7 +22,7 @@ android {
         buildTypes.release.signingConfig = signingConfigs.playUpload
     }
     sourceSets.main {
-        java.srcDirs = [rootProject.file('app/src/main/java')]
+        java.srcDirs = [rootProject.file('app/src/main/java'), file('src/main/java')]
         res.srcDirs = [rootProject.file('app/src/main/res'), file('src/main/res')]
     }
 }

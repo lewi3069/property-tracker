@@ -40,6 +40,14 @@ public final class CameraWall extends ViewGroup {
         frames.clear();
         if (count == 0) return;
         if (count == 1) { add(0, 0, 1, 1, width, height); return; }
+        if (count == 13 && (BuildConfig.TV_INTERFACE || width >= height)) {
+            add(.25, .25, .75, .75, width, height);
+            for (int row = 0; row < 4; row++) for (int column = 0; column < 4; column++) {
+                if (row >= 1 && row <= 2 && column >= 1 && column <= 2) continue;
+                add(column / 4.0, row / 4.0, (column + 1) / 4.0, (row + 1) / 4.0, width, height);
+            }
+            return;
+        }
         if (!BuildConfig.TV_INTERFACE && height > width) {
             if (featured == 1 && count > 2) {
                 add(0, 0, 1, .5, width, height);
@@ -58,10 +66,11 @@ public final class CameraWall extends ViewGroup {
             for (int i = 0; i < count - 1; i++) add(.72, (double)i / (count - 1), 1, (double)(i + 1) / (count - 1), width, height);
         } else if (featured == 1) {
             int columns = count <= 6 ? 3 : 4;
-            add(0, 0, 2.0 / columns, 2.0 / 3, width, height);
-            for (int row = 0; row < 3 && frames.size() < count; row++) for (int column = 0; column < columns && frames.size() < count; column++) {
+            int rows = count > 9 ? 4 : 3;
+            add(0, 0, 2.0 / columns, 2.0 / rows, width, height);
+            for (int row = 0; row < rows && frames.size() < count; row++) for (int column = 0; column < columns && frames.size() < count; column++) {
                 if (row < 2 && column < 2) continue;
-                add((double)column / columns, (double)row / 3, (double)(column + 1) / columns, (double)(row + 1) / 3, width, height);
+                add((double)column / columns, (double)row / rows, (double)(column + 1) / columns, (double)(row + 1) / rows, width, height);
             }
         } else if (featured >= 2 && count > 2) {
             double split = count <= 4 ? .7 : .6;

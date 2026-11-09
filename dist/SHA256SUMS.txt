@@ -1,3 +1,4 @@
+b9b6247fa8661d9bb6ccced4fc9fc864a78d1ec778e9310a1497097ec53fc084  property-tracker-0.2.5-debug.apk
 60bc8225de8418e641ef9ddfe16b6a6de90d94bfed49a6640a3c3dc379832497  property-tracker-0.2.4-debug.apk
 13690bbd5751fbb066c6f5fcc41468acf7d963e9289eeb75457d0734f431ce8a  property-tracker-0.2.3-debug.apk
 b022445d5443a75fce8673b5b31bc86bde8872c53f7b5addcefb45272c02e4c5  property-tracker-0.2.2-debug.apk

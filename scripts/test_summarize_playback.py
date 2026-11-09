@@ -22,6 +22,15 @@ class PlaybackSummaryTest(unittest.TestCase):
         self.assertEqual(20.0, result['attempts'][0]['latest_submitted_fps'])
         self.assertEqual('not_measured', result['presentation_evidence'])
 
+    def test_native_displayed_counter_keeps_presentation_caveat(self):
+        result = module.summarize([
+            event(1, 'one', 'start', 'renderer=texture engine=native'),
+            event(31, 'one', 'health', 'native_displayed=100 native_decoded=200'),
+            event(61, 'one', 'health', 'native_displayed=700 native_decoded=1400')])
+        self.assertEqual('native', result['attempts'][0]['engine'])
+        self.assertEqual(20.0, result['attempts'][0]['latest_native_displayed_fps'])
+        self.assertEqual('not_measured', result['presentation_evidence'])
+
     def test_raw_errors_urls_and_unknown_fields_are_not_copied(self):
         result = module.summarize(['unstructured error rtsp://user:password@host',
                                   event(1, 'test', 'failure', 'reason=rtsp://user:password@host'),

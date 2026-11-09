@@ -180,3 +180,7 @@ The current Home Assistant automation rules were read read-only and use the exis
 The TV app now starts its selected multi-camera layout fullscreen when enabled cameras are configured. Back reveals the toolbar and footer without replacing unchanged players. Activity recreation preserves an explicit choice to show the controls; a fresh launch starts fullscreen again. Empty-camera setup keeps its controls visible. Phone startup retains its prior behavior.
 
 All 98 TV/core and 12 phone UI test cases passed. TV lint has zero errors. The additional regression cases cover fresh TV startup, Back/player reuse, recreation after leaving fullscreen, and first launch without configured cameras. The signed APK retains the existing package, certificate and API-22 support. In-place updates on three configured TV installations preserved encrypted settings. Physical-device UI checks verify the full-display camera-wall bounds, Back revealing controls, and a cold relaunch returning fullscreen. No new decoder-capacity or prolonged playback result is claimed for this UI-only change.
+
+## Version 0.2.5 dense-grid trial
+
+See the [native-engine implementation and progressive physical-device results](PLAYBACK-025.md). The experimental option remains off by default and retains the older-stick/low-memory safeguards. This testing does not establish an overnight reliability result.

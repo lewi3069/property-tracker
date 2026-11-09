@@ -7,6 +7,13 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class StartupCoordinatorTest {
+    @Test public void nativeRetirementBlocksNewStartsUntilAllReleasesComplete() {
+        Clock clock=new Clock();StartupCoordinator c=new StartupCoordinator(clock,2,20000);
+        Runnable first=c.beginRelease(),second=c.beginRelease();List<String> starts=new ArrayList<>();
+        c.enqueue(true,t->starts.add("new"),()->{});clock.advance(25000);assertTrue(starts.isEmpty());
+        first.run();first.run();clock.advance(0);assertTrue(starts.isEmpty());
+        second.run();clock.advance(0);assertEquals(List.of("new"),starts);
+    }
     private static final class Clock implements StartupCoordinator.Scheduler {
         private static final class Task {
             Runnable run; long at, sequence;

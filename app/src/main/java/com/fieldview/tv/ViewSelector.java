@@ -19,6 +19,7 @@ public final class ViewSelector {
     private int capacity;
     private final int maxCapacity;
     private String mode = AUTO, pinned;
+    private String defaultCamera;
     private Selection current;
     private long changedAt;
 
@@ -27,7 +28,7 @@ public final class ViewSelector {
     }
 
     public ViewSelector(List<String> cameraIds, Map<String, List<String>> zoneCameras, int capacity, int maxCapacity) {
-        if (maxCapacity < 1 || maxCapacity > 9) throw new IllegalArgumentException("Invalid playback limit");
+        if (maxCapacity < 1 || maxCapacity > 13) throw new IllegalArgumentException("Invalid playback limit");
         this.maxCapacity = maxCapacity;
         if (new LinkedHashSet<>(cameraIds).size() != cameraIds.size()) throw new IllegalArgumentException("Duplicate camera IDs");
         cameras = new ArrayList<>(cameraIds);
@@ -37,11 +38,12 @@ public final class ViewSelector {
     }
 
     public void setCapacity(int count) {
-        if (count < 1 || count > 9) throw new IllegalArgumentException("Camera count must be 1–9");
+        if (count < 1 || count > 13) throw new IllegalArgumentException("Camera count must be 1–13");
         capacity = Math.min(count, maxCapacity);
         current = null;
     }
     public int maxCapacity() { return maxCapacity; }
+    public void setDefaultCamera(String id) { defaultCamera = id; }
 
     /** Keep activity/location and a valid manual selection when the catalog is edited. */
     public void reconfigure(List<String> ids, Map<String, List<String>> mapping) {
@@ -113,10 +115,11 @@ public final class ViewSelector {
         String reason;
         int priority;
         List<String> featured = new ArrayList<>();
+        int featuredLimit = capacity == 13 ? 1 : Math.min(2, capacity);
         if (PIN.equals(mode)) { reason = PIN; priority = 100; featured.add(pinned); }
         else if (GRID.equals(mode)) { reason = GRID; priority = 100; }
-        else if (!motionIds.isEmpty()) { reason = "activity"; priority = 20; featured.addAll(motionIds.subList(0, Math.min(Math.min(2, capacity), motionIds.size()))); }
-        else if (!presenceIds.isEmpty()) { reason = "location"; priority = 10; featured.addAll(presenceIds.subList(0, Math.min(Math.min(2, capacity), presenceIds.size()))); }
+        else if (!motionIds.isEmpty()) { reason = "activity"; priority = 20; featured.addAll(motionIds.subList(0, Math.min(featuredLimit, motionIds.size()))); }
+        else if (!presenceIds.isEmpty()) { reason = "location"; priority = 10; featured.addAll(presenceIds.subList(0, Math.min(featuredLimit, presenceIds.size()))); }
         else { reason = "overview"; priority = 0; }
 
         boolean same = current != null && current.reason.equals(reason) && current.featured.equals(featured);
@@ -125,6 +128,7 @@ public final class ViewSelector {
                 && priority <= current.priority && now - changedAt < 8_000;
         if (!same && !hold) { current = new Selection(reason, priority, featured, Collections.emptyList(), mode); changedAt = now; }
         LinkedHashSet<String> ordered = new LinkedHashSet<>(current.featured);
+        if (!PIN.equals(mode) && capacity == 13 && cameras.contains(defaultCamera)) ordered.add(defaultCamera);
         if (!PIN.equals(mode)) ordered.addAll(cameras);
         List<String> visible = new ArrayList<>(ordered);
         if (visible.size() > capacity) visible = new ArrayList<>(visible.subList(0, capacity));

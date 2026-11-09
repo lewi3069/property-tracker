@@ -120,3 +120,7 @@ A sleeping screen authenticated and then disconnected when its Activity stopped.
 ## Connection recovery in0.2.0
 
 Connected status now waits for a successful subscription acknowledgement and accepted QoS. Initial failures and later losses retry with2/4/8/16/30-second backoff; connect/subscription callbacks have12/8-second deadlines. Closing a viewer stops retries and rejects late callbacks. Each UI inbox holds at most64 messages and processes8 per turn; overflow drops oldest pending commands, with command expiry retaining its fallback role. The command topic and payload contract are unchanged. The phone target starts with its own `phone` screen ID; configure a unique identity when connecting more than one phone.
+
+## Dense TV layouts
+
+Version 0.2.5 accepts layout requests up to 13 cameras, bounded by the receiving installation's effective playback profile. A remote request does not enable the experimental native engine; enable that locally in Layout first. At 13 cameras, Auto selects one detected camera for the large center position and restores the configured center after activity clears/expires and the existing hold interval. Grid and Pin remain manual overrides. Add each screen's command topic to the same activity fan-out to control more screens; each screen needs a unique screen/client identity and a matching camera-ID catalog.

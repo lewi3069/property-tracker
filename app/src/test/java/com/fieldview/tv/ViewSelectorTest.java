@@ -9,6 +9,18 @@ import java.util.Map;
 import static org.junit.Assert.*;
 
 public class ViewSelectorTest {
+    @Test public void thirteenCameraSpotlightSwitchesToOneDetectionAndReturnsToItsDefault() {
+        java.util.List<String> ids = new java.util.ArrayList<>(); for (int i=0;i<14;i++) ids.add("camera-"+i);
+        ViewSelector s = new ViewSelector(ids, Collections.emptyMap(),13,13); s.setDefaultCamera("camera-1");
+        assertEquals(13,s.snapshot(0).visible.size()); assertEquals("camera-1",s.snapshot(0).visible.get(0));
+        s.activity("camera-12",100,30100); s.activity("camera-10",200,30200);
+        assertEquals(Collections.singletonList("camera-10"),s.snapshot(200).featured);
+        assertEquals("camera-10",s.snapshot(200).visible.get(0)); assertEquals(13,new java.util.HashSet<>(s.snapshot(200).visible).size());
+        assertEquals("camera-1",s.snapshot(30200).visible.get(0));
+        s.setMode(ViewSelector.GRID,null); s.activity("camera-12",40000,70000);
+        assertEquals("camera-1",s.snapshot(40000).visible.get(0));
+        s.setDefaultCamera("missing"); assertEquals("camera-0",s.snapshot(40001).visible.get(0));
+    }
     @Test public void heartbeatExtendsExpiryWithoutOvertakingANewerDetection() {
         ViewSelector s = new ViewSelector(java.util.Arrays.asList("one", "two"), java.util.Collections.emptyMap(), 1);
         s.activity("one", 0, 30_000); s.activity("two", 10_000, 40_000);

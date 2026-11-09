@@ -8,6 +8,10 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class PlaybackFailureTest {
+    @Test public void diagnosticIdentifiesCauseClassesWithoutRawExceptionText() {
+        String value=PlaybackFailure.diagnostic(new IOException("rtsp://user:secret@camera",new IllegalStateException("password=secret")));
+        assertTrue(value.startsWith("IOException>IllegalStateException")); assertFalse(value.contains("secret"));
+    }
     @Test public void nestedNetworkTimeoutExplainsBlockedConnectivity() {
         assertTrue(PlaybackFailure.describe(new IOException("Source failure", new SocketTimeoutException())).contains("timed out"));
     }

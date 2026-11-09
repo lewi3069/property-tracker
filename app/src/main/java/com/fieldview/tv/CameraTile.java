@@ -40,13 +40,15 @@ public final class CameraTile extends FrameLayout {
     private final TextView status;
     private final boolean floating;
     private final boolean texture;
-    private StartupCoordinator coordinator;
+    private StartupCoordinator coordinator = StartupCoordinator.shared();
+    private GridVideoSession gridSession;
     private StartupCoordinator.Ticket startup;
     private String cameraLabel;
     private final String session = java.util.UUID.randomUUID().toString().substring(0, 8);
     private int generation;
     private long attemptStartedAt;
     private boolean mainStream;
+    private boolean nativeGrid;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private ExoPlayer player;
     private String activeUri;
@@ -88,6 +90,8 @@ public final class CameraTile extends FrameLayout {
 
     public void setFeatured(boolean value) { featured = value; if (startup != null) startup.prioritize(value); updateBorder(); }
     boolean usesTexture() { return texture; }
+    boolean usesNativeGrid() { return nativeGrid; }
+    void setNativeGrid(boolean value) { nativeGrid = !floating && texture && value; if(nativeGrid)surface.setVisibility(View.GONE); }
     /** Set before play; wall playback and HEVC retain the normal decoder policy. */
     public void setSoftwareFloatingH264(boolean value) { softwareFloatingH264 = floating && value; }
     static MediaCodecSelector decoderSelector(boolean preferSoftware, MediaCodecSelector regular, MediaCodecSelector software) {
@@ -129,7 +133,7 @@ public final class CameraTile extends FrameLayout {
         cameraLabel = cameraId != null && cameraId.matches("[A-Za-z0-9_-]{1,80}") ? cameraId : "tile-" + getId();
     }
     void play(String uri, boolean useMain) {
-        if (!released && uri.equals(activeUri) && (player != null || retry != null || startup != null)) return;
+        if (!released && uri.equals(activeUri) && (player != null || gridSession != null || retry != null || startup != null)) return;
         disposePlayer();
         mainStream = useMain;
         activeUri = uri; released = false; attempts = 0; stalledRecoveries = 0;
@@ -156,13 +160,18 @@ public final class CameraTile extends FrameLayout {
     private void startPlayer() {
         if (released) return;
         generation++; attemptStartedAt = SystemClock.elapsedRealtime();
-        Log.i("FieldviewPlayer", diagnosticPrefix() + "event=start renderer=" + (texture ? "texture" : "surface"));
+        Log.i("FieldviewPlayer", diagnosticPrefix() + "event=start renderer=" + (texture ? "texture" : "surface") + " engine=" + (nativeGrid ? "native" : "media3"));
         firstFrame = false;
         VideoProgress attemptProgress = new VideoProgress(SystemClock.elapsedRealtime());
         progress = attemptProgress;
         nextHealthLogAt = SystemClock.elapsedRealtime() + 30_000;
         showStatus("Connecting…");
         armStallTimeout();
+        if (nativeGrid) {
+            try { startNativeGrid(attemptProgress); }
+            catch (RuntimeException | LinkageError error) { scheduleRetry("Native grid unavailable · try the standard layout"); }
+            return;
+        }
         try {
             DefaultTrackSelector tracks = new DefaultTrackSelector(getContext());
             tracks.setParameters(tracks.buildUponParameters().setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, true));
@@ -183,7 +192,7 @@ public final class CameraTile extends FrameLayout {
                 @Override public void onPlayerError(PlaybackException error) {
                     if (released || player != attempt) return;
                     String reason = PlaybackFailure.describe(error);
-                    Log.w("FieldviewPlayer", diagnosticPrefix() + "event=failure code=" + error.getErrorCodeName() + "; " + reason);
+                    Log.w("FieldviewPlayer", diagnosticPrefix() + "event=failure code=" + error.getErrorCodeName() + " detail=" + PlaybackFailure.diagnostic(error) + "; " + reason);
                     scheduleRetry(reason);
                 }
                 @Override public void onRenderedFirstFrame() {
@@ -213,12 +222,36 @@ public final class CameraTile extends FrameLayout {
         } catch (RuntimeException error) { scheduleRetry(PlaybackFailure.describe(error)); }
     }
 
+    private void startNativeGrid(VideoProgress attemptProgress) {
+        GridVideoSession attempt = GridVideoFactory.create(getContext()); gridSession = attempt;
+        surface.setVisibility(View.GONE);
+        addView(attempt.view(), 0, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+        Log.i("FieldviewPlayer", diagnosticPrefix() + "event=decoder name=libvlc.avcodec.software");
+        attempt.start(activeUri, new GridVideoSession.Listener() {
+            @Override public void frames() {
+                if (released || gridSession != attempt) return;
+                long now = SystemClock.elapsedRealtime(); attemptProgress.frame(now);
+                if (!firstFrame) {
+                    firstFrame = true; attemptProgress.rendered(now); finishStartup(); showStatus("Live");
+                    GridVideoSession.Stats stats = attempt.stats();
+                    Log.i("FieldviewPlayer", diagnosticPrefix() + "event=first_frame startup_ms=" + (now - attemptStartedAt)
+                            + " mime=video/native size=" + stats.width + "x" + stats.height);
+                }
+            }
+            @Override public void error() {
+                if (released || gridSession != attempt) return;
+                Log.w("FieldviewPlayer", diagnosticPrefix() + "event=failure code=NATIVE_STREAM_ERROR");
+                scheduleRetry("Camera stream unavailable");
+            }
+        });
+    }
+
     private void armStallTimeout() {
         if (stalled != null) return;
         stalled = new Runnable() {
             @Override public void run() {
                 if (stalled != this) return;
-                if (released || player == null || progress == null) { stalled = null; return; }
+                if (released || (player == null && gridSession == null) || progress == null) { stalled = null; return; }
                 long now = SystemClock.elapsedRealtime();
                 if (progress.stalled(now)) {
                     stalled = null;
@@ -240,6 +273,15 @@ public final class CameraTile extends FrameLayout {
     }
     private void logVideoHealth(long now, boolean stalledVideo) {
         ExoPlayer current = player; VideoProgress currentProgress = progress;
+        if (gridSession != null && currentProgress != null) {
+            GridVideoSession.Stats stats = gridSession.stats();
+            String message = diagnosticPrefix() + (stalledVideo ? "event=stalled " : "event=health ")
+                    + "frame_silent_ms=" + currentProgress.silentFor(now) + " native_decoded=" + stats.decoded
+                    + " native_displayed=" + stats.displayed + " native_lost=" + stats.lost + " native_input_bytes=" + stats.bytes
+                    + " native_heap_kib=" + android.os.Debug.getNativeHeapAllocatedSize() / 1024;
+            if (stalledVideo) Log.w("FieldviewPlayer", message); else Log.i("FieldviewPlayer", message);
+            return;
+        }
         if (current == null || currentProgress == null) return;
         DecoderCounters counters = current.getVideoDecoderCounters();
         if (counters != null) counters.ensureUpdated();
@@ -280,9 +322,19 @@ public final class CameraTile extends FrameLayout {
 
     private void releasePlayer() {
         ExoPlayer previous = player;
+        GridVideoSession previousGrid = gridSession; gridSession = null;
+        StartupCoordinator.Ticket previousStartup = startup; startup = null;
         player = null;
         progress = null;
         allocator = null;
+        if (previousGrid != null) {
+            if (previousStartup != null) previousStartup.stopDeadline();
+            Runnable unblocked = coordinator.beginRelease();
+            Log.i("FieldviewPlayer", diagnosticPrefix() + "event=release");
+            previousGrid.close(() -> { if (previousStartup != null) previousStartup.finish(); unblocked.run(); });
+            removeView(previousGrid.view()); surface.setVisibility(View.VISIBLE);
+            return;
+        }
         // Detaching/releasing can dispatch callbacks. The old instance must already
         // be inactive so a callback cannot release it twice or schedule another retry.
         try {
@@ -290,7 +342,7 @@ public final class CameraTile extends FrameLayout {
                 Log.i("FieldviewPlayer", diagnosticPrefix() + "event=release");
                 try { surface.setPlayer(null); } finally { previous.release(); }
             }
-        } finally { finishStartup(); }
+        } finally { if (previousStartup != null) previousStartup.finish(); }
     }
 
     public void release() { released = true; disposePlayer(); activeUri = null; }

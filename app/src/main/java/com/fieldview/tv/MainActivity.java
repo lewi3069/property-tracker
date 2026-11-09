@@ -42,10 +42,7 @@ import java.util.Map;
 public final class MainActivity extends Activity {
     public static final String EXTRA_SETUP_ONLY = "com.fieldview.tv.SETUP_ONLY";
     private final Handler handler = new Handler(Looper.getMainLooper());
-    private final StartupCoordinator startupCoordinator = new StartupCoordinator(new StartupCoordinator.Scheduler() {
-        @Override public void post(Runnable task, long delayMs) { handler.postDelayed(task, delayMs); }
-        @Override public void remove(Runnable task) { handler.removeCallbacks(task); }
-    }, 2, VideoProgress.TIMEOUT_MS);
+    private final StartupCoordinator startupCoordinator = StartupCoordinator.shared();
     private final Map<String, CameraTile> tiles = new LinkedHashMap<>();
     private ConfigStore store;
     private AppConfig config;
@@ -102,8 +99,7 @@ public final class MainActivity extends Activity {
             return;
         }
         if (config.enabledCameras().isEmpty()) layoutFullscreen = false;
-        ActivityManager memory = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
-        playbackLimits = PlaybackLimits.forDevice(Build.MODEL, memory != null && memory.isLowRamDevice());
+        playbackLimits = limitsFor(config.textureGrid, config.denseGrid);
         // ViewSelector enforces the effective budget without overwriting the requested layout.
         root = new LinearLayout(this); root.setId(R.id.viewer_root); root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(0xFF101516); root.setPadding(dp(20), dp(14), dp(20), dp(10));
@@ -119,6 +115,7 @@ public final class MainActivity extends Activity {
             toolbar.addView(button("Float", this::showFloatingCameraPicker));
             toolbar.addView(button("Cameras", this::showCameras));
             toolbar.addView(button("Home Assistant", this::showMqtt));
+            toolbar.addView(button("About", this::showLicenses));
         } else {
             toolbar.removeView(layoutButton);
             brand.setVisibility(View.GONE);
@@ -298,6 +295,7 @@ public final class MainActivity extends Activity {
         }
         if (selector == null || selector.maxCapacity() != playbackLimits.maxVisible) selector = new ViewSelector(ids, zones, config.visibleCount, playbackLimits.maxVisible);
         else { selector.reconfigure(ids, zones); if (layoutOverrideUntil == 0) selector.setCapacity(config.visibleCount); }
+        selector.setDefaultCamera(config.spotlightCamera);
         router = new CommandRouter(selector, (count, until) -> { layoutOverrideUntil = until; selector.setCapacity(count); });
         signature = "";
     }
@@ -335,7 +333,7 @@ public final class MainActivity extends Activity {
         if (layoutOverrideUntil != 0) status += "  ·  temporary layout";
         if (!status.contentEquals(footer.getText())) footer.setText(status);
         boolean textureGrid = config.textureGrid && selection.visible.size() > 1;
-        String nextSignature = selection.reason + selection.visible + selection.featured + config.useMainStream + fullscreen + textureGrid;
+        String nextSignature = selection.reason + selection.visible + selection.featured + config.useMainStream + fullscreen + textureGrid + config.denseGrid;
         if (signature.equals(nextSignature)) return;
         signature = nextSignature;
         String previouslyFocused = null;
@@ -343,7 +341,8 @@ public final class MainActivity extends Activity {
         Iterator<Map.Entry<String, CameraTile>> iterator = tiles.entrySet().iterator();
         while (iterator.hasNext()) {
             Map.Entry<String, CameraTile> entry = iterator.next();
-            if (!selection.visible.contains(entry.getKey()) || entry.getValue().usesTexture() != textureGrid) {
+            if (!selection.visible.contains(entry.getKey()) || entry.getValue().usesTexture() != textureGrid
+                    || entry.getValue().usesNativeGrid() != (BuildConfig.TV_INTERFACE && config.denseGrid && textureGrid)) {
                 entry.getValue().release(); wall.removeView(entry.getValue()); iterator.remove();
             }
         }
@@ -358,6 +357,7 @@ public final class MainActivity extends Activity {
             CameraTile tile = tiles.get(id);
             if (tile == null) {
                 tile = new CameraTile(this, camera.name, false, textureGrid);
+                tile.setNativeGrid(BuildConfig.TV_INTERFACE && config.denseGrid);
                 tile.configureStartup(startupCoordinator, id);
                 tile.setOnClickListener(view -> {
                     if (!BuildConfig.TV_INTERFACE && ViewSelector.PIN.equals(selector.snapshot(System.currentTimeMillis()).mode)) showPhoneControls();
@@ -369,7 +369,8 @@ public final class MainActivity extends Activity {
             boolean featured = selection.featured.contains(id);
             tile.setFullscreen(fullscreen, !pinned && selection.visible.size() > 1);
             tile.setFeatured(featured);
-            String stream = camera.streamUri(config.useMainStream && featured);
+            boolean main = config.useMainStream && featured && !(config.denseGrid && selection.visible.size() > 1);
+            String stream = camera.streamUri(main);
             tile.play(stream, !stream.equals(camera.streamUri(false)));
             ordered.add(tile);
         }
@@ -409,18 +410,15 @@ public final class MainActivity extends Activity {
         if (bridge != null) { bridge.stop(); bridge = null; }
     }
 
+    private PlaybackLimits limitsFor(boolean texture, boolean dense) {
+        ActivityManager memory = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
+        return PlaybackLimits.forDevice(Build.MODEL, memory != null && memory.isLowRamDevice(),
+                BuildConfig.TV_INTERFACE && Build.VERSION.SDK_INT >= 26 && texture && dense);
+    }
     private void showLayout() {
         LinearLayout fields = fields();
-        int[] allowedCounts = playbackLimits.layoutCounts();
-        int[] counts = config.visibleCount > playbackLimits.maxVisible ? java.util.Arrays.copyOf(allowedCounts, allowedCounts.length + 1) : allowedCounts;
-        if (counts != allowedCounts) counts[counts.length - 1] = config.visibleCount;
-        String[] choices = new String[counts.length];
-        for (int i = 0; i < counts.length; i++) choices[i] = counts[i] + (counts[i] == 1 ? " camera" : " cameras")
-                + (counts[i] > playbackLimits.maxVisible ? " requested (" + playbackLimits.maxVisible + " live)" : "");
-        Spinner count = spinner(choices);
-        int index = 0; for (int i = 0; i < counts.length; i++) if (counts[i] == config.visibleCount) index = i;
-        final int requestedCount = config.visibleCount;
-        count.setSelection(index); fields.addView(label("Cameras visible on this screen", 14)); fields.addView(count);
+        Spinner count = spinner(new String[0]);
+        fields.addView(label("Cameras visible on this screen", 14)); fields.addView(count);
         CheckBox fullLayout = new CheckBox(this); fullLayout.setText(R.string.full_screen_layout);
         fullLayout.setId(R.id.layout_fullscreen);
         fullLayout.setChecked(layoutFullscreen); fields.addView(fullLayout);
@@ -431,24 +429,55 @@ public final class MainActivity extends Activity {
         fields.addView(label("Compatibility option for freezes alongside other video apps. Use a small H.264 grid stream; software decoding uses more CPU. H.265 and ordinary viewing keep their normal decoder selection.", 13));
         CheckBox texture = new CheckBox(this); texture.setText("Experimental grid compatibility");
         texture.setChecked(config.textureGrid); fields.addView(texture);
-        fields.addView(label("Try a different drawing path for grid graphics freezes. Single-camera and floating video keep standard rendering. The camera limit stays the same.", 13));
-        fields.addView(label(playbackLimits.maxVisible < 9
-                ? "App compatibility limit: " + playbackLimits.maxVisible + " live cameras at once. Choose any saved camera under View."
-                : "This screen saves its own layout. Start with fewer live feeds and increase after testing playback.", 13));
-        if (requestedCount > playbackLimits.maxVisible)
-            fields.addView(label("Saved request: " + requestedCount + " cameras; currently using " + playbackLimits.clamp(requestedCount) + ".", 13));
+        fields.addView(label("Try a different drawing path for grid graphics freezes. Single-camera and floating video keep standard rendering.", 13));
+        CheckBox dense = new CheckBox(this); dense.setText("Experimental larger layouts (up to 13 cameras)");
+        dense.setChecked(config.denseGrid); fields.addView(dense);
+        dense.setEnabled(BuildConfig.TV_INTERFACE && Build.VERSION.SDK_INT >= 26 && limitsFor(true, true).maxVisible == 13);
+        fields.addView(label("Requires grid compatibility above. Uses grid streams and the native software video engine. More feeds use more CPU and memory and may reduce frame rate. Start with fewer cameras before trying 13.", 13));
+        List<AppConfig.Camera> defaults = config.enabledCameras();
+        String[] defaultNames = new String[defaults.size() + 1]; defaultNames[0] = "First enabled camera";
+        int defaultIndex = 0;
+        for (int i = 0; i < defaults.size(); i++) { defaultNames[i + 1] = defaults.get(i).name; if (defaults.get(i).id.equals(config.spotlightCamera)) defaultIndex = i + 1; }
+        Spinner spotlight = spinner(defaultNames); spotlight.setSelection(defaultIndex);
+        fields.addView(label("Default center camera for the 13-camera layout", 14)); fields.addView(spotlight);
+        TextView limit = label("", 13); fields.addView(limit);
+        final int[][] countOptions = {new int[0]};
+        Runnable refreshCounts = () -> {
+            int selected = count.getSelectedItemPosition();
+            int requested = selected >= 0 && selected < countOptions[0].length ? countOptions[0][selected] : config.visibleCount;
+            PlaybackLimits prospective = limitsFor(texture.isChecked(), dense.isChecked());
+            int[] allowed = prospective.layoutCounts();
+            int[] offered = requested > prospective.maxVisible ? java.util.Arrays.copyOf(allowed, allowed.length + 1) : allowed;
+            if (offered != allowed) offered[offered.length - 1] = requested;
+            countOptions[0] = offered;
+            String[] names = new String[offered.length]; int index = 0;
+            for (int i = 0; i < offered.length; i++) {
+                names[i] = offered[i] + (offered[i] == 1 ? " camera" : " cameras")
+                        + (offered[i] > prospective.maxVisible ? " requested (" + prospective.maxVisible + " live)" : "");
+                if (offered[i] == requested) index = i;
+            }
+            ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, names);
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item); count.setAdapter(adapter); count.setSelection(index);
+            limit.setText("App compatibility limit: " + prospective.maxVisible + " live cameras. Saved request: " + requested + ".");
+        };
+        dense.setOnCheckedChangeListener((button, checked) -> { if (checked) texture.setChecked(true); refreshCounts.run(); });
+        texture.setOnCheckedChangeListener((button, checked) -> { if (!checked) dense.setChecked(false); refreshCounts.run(); });
+        refreshCounts.run();
         ScrollView scroll = new ScrollView(this); scroll.addView(fields);
         AlertDialog.Builder layoutDialog = new AlertDialog.Builder(this).setTitle("Screen layout").setView(scroll).setNegativeButton("Cancel", null)
                 .setPositiveButton("Save", (dialog, which) -> {
                     AppConfig next = copyConfig();
-                    next.visibleCount = counts[count.getSelectedItemPosition()];
+                    next.visibleCount = countOptions[0][count.getSelectedItemPosition()];
                     next.useMainStream = quality.isChecked();
                     next.softwareFloatingH264 = softwareFloat.isChecked();
                     next.textureGrid = texture.isChecked();
+                    next.denseGrid = dense.isChecked() && dense.isEnabled() && texture.isChecked();
+                    next.spotlightCamera = spotlight.getSelectedItemPosition() == 0 ? "" : defaults.get(spotlight.getSelectedItemPosition() - 1).id;
                     if (save(next)) {
                         layoutFullscreen = fullLayout.isChecked();
                         if (layoutFullscreen) setupOnly = false;
-                        layoutOverrideUntil = 0; selector.setCapacity(config.visibleCount); render();
+                        layoutOverrideUntil = 0;
+                        playbackLimits = limitsFor(config.textureGrid, config.denseGrid); resetSelector(); render();
                     }
                 });
         if (ViewSelector.PIN.equals(selector.snapshot(System.currentTimeMillis()).mode)) {

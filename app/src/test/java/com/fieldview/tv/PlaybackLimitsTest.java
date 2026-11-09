@@ -4,6 +4,14 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class PlaybackLimitsTest {
+    @Test public void denseTrialIsExplicitAndNeverExpandsOlderOrLowMemoryDevices() {
+        assertEquals(4, PlaybackLimits.forDevice("AFTKM", false).maxVisible);
+        assertEquals(13, PlaybackLimits.forDevice("AFTKM", false, true).maxVisible);
+        assertArrayEquals(new int[]{1,2,4,6,9,13}, PlaybackLimits.forDevice("AFTKM", false, true).layoutCounts());
+        assertEquals(2, PlaybackLimits.forDevice("AFTT", false, true).maxVisible);
+        assertEquals(4, PlaybackLimits.forDevice("AFTMM", false, true).maxVisible);
+        assertEquals(4, PlaybackLimits.forDevice("AFTKM", true, true).maxVisible);
+    }
     @Test public void olderFirestickKeepsATwoFeedBudget() {
         PlaybackLimits limits = PlaybackLimits.forDevice("AFTT", false);
         assertEquals(2, limits.clamp(9));

@@ -29,6 +29,32 @@ import static org.robolectric.Shadows.shadowOf;
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = 28)
 public class CameraTileTest {
+    @Test public void retiredNativeAttemptCannotCancelTheReplacementStartup() throws Exception {
+        ActivityController<Activity> controller=Robolectric.buildActivity(Activity.class).setup();
+        CameraTile tile=new CameraTile(controller.get(),"Native test");
+        try {
+            android.os.Handler handler=new android.os.Handler(Looper.getMainLooper());
+            StartupCoordinator c=new StartupCoordinator(new StartupCoordinator.Scheduler(){
+                public void post(Runnable task,long delay){handler.postDelayed(task,delay);}
+                public void remove(Runnable task){handler.removeCallbacks(task);}
+            },1,20000);
+            tile.configureStartup(c,"test");
+            StartupCoordinator.Ticket old=c.enqueue(false,t->{},()->fail("Old deadline survived retirement"));
+            shadowOf(Looper.getMainLooper()).idle();
+            Runnable[] done={null};android.view.View view=new android.view.View(controller.get());
+            GridVideoSession retiring=new GridVideoSession(){
+                public android.view.View view(){return view;}
+                public void start(String uri,Listener listener){}
+                public Stats stats(){return new Stats(0,0,0,0,0,0);}
+                public void close(Runnable callback){done[0]=callback;}
+            };
+            field("gridSession").set(tile,retiring);field("startup").set(tile,old);field("activeUri").set(tile,"rtsp://old.invalid/sub");
+            tile.play("rtsp://new.invalid/sub");Object replacement=field("startup").get(tile);
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(25));assertNull(field("player").get(tile));
+            done[0].run();assertSame(replacement,field("startup").get(tile));
+            tile.release();shadowOf(Looper.getMainLooper()).idle();assertNull(field("player").get(tile));
+        } finally {tile.release();controller.pause().stop().destroy();}
+    }
     @Test public void releasedQueuedTileCannotAllocateAPlayerOrRestartOnALaterTick() throws Exception {
         ActivityController<Activity> controller = Robolectric.buildActivity(Activity.class).setup();
         CameraTile tile = new CameraTile(controller.get(), "Test");

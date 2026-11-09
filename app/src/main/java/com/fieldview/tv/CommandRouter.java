@@ -63,7 +63,7 @@ public final class CommandRouter {
                 Object count = data.get("max_visible");
                 if (!(count instanceof Number)) return false;
                 double number = ((Number) count).doubleValue();
-                if (number != Math.rint(number) || number < 1 || number > 9) return false;
+                if (number != Math.rint(number) || number < 1 || number > 13) return false;
                 layouts.apply((int) number, expires);
                 return true;
             }

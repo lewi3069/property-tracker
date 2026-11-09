@@ -11,6 +11,23 @@ import java.util.Set;
 
 /** Returns fixed, actionable text without exposing credential-bearing exception messages. */
 public final class PlaybackFailure {
+    public static String diagnostic(Throwable error) {
+        Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
+        StringBuilder result = new StringBuilder();
+        for (Throwable cause = error; cause != null && seen.size() < 8 && seen.add(cause); cause = cause.getCause()) {
+            if (result.length() > 0) result.append('>');
+            result.append(cause.getClass().getSimpleName().replaceAll("[^A-Za-z0-9_$]", "_"));
+            if (cause instanceof IllegalStateException && cause.getStackTrace().length > 0) {
+                StackTraceElement frame=cause.getStackTrace()[0];
+                result.append('@').append(frame.getClassName()).append('.').append(frame.getMethodName());
+            }
+            if (cause instanceof android.media.MediaCodec.CodecException) {
+                String detail = ((android.media.MediaCodec.CodecException) cause).getDiagnosticInfo();
+                if (detail != null) result.append(':').append(detail.substring(0, Math.min(detail.length(), 100)).replaceAll("[^A-Za-z0-9_.-]", "_"));
+            }
+        }
+        return result.toString();
+    }
     private PlaybackFailure() { }
     public static String describe(Throwable error) {
         if (error instanceof PlaybackException) {

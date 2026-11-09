@@ -1,4 +1,4 @@
-"""Summarize 0.2.3 FieldviewPlayer epoch logs without copying raw log messages."""
+"""Summarize FieldviewPlayer epoch logs without copying raw log messages."""
 import argparse
 import json
 import pathlib
@@ -6,7 +6,8 @@ import re
 
 EVENT = re.compile(r'^\s*(\d+\.\d+)\s+\d+\s+\d+\s+[A-Z]\s+FieldviewPlayer:\s+camera=([A-Za-z0-9_-]{1,80}) session=([a-f0-9]{8}) attempt=(\d+) view=(wall|float) profile=(main|sub) event=([a-z_]+)\b(.*)$')
 INTEGER_FIELDS = ('startup_ms', 'state', 'frame_silent_ms', 'buffered_ms', 'submitted_frames',
-                  'decoder_rendered', 'dropped', 'media_buffer_bytes', 'native_heap_kib', 'java_heap_kib')
+                  'decoder_rendered', 'dropped', 'media_buffer_bytes', 'native_heap_kib', 'java_heap_kib',
+                  'native_decoded', 'native_displayed', 'native_lost', 'native_input_bytes')
 
 
 def summarize(lines):
@@ -32,6 +33,9 @@ def summarize(lines):
             renderer = re.search(r'\brenderer=(surface|texture)\b', rest)
             if renderer:
                 row['renderer'] = renderer[1]
+            engine = re.search(r'\bengine=(media3|native)\b', rest)
+            if engine:
+                row['engine'] = engine[1]
         elif event in ('first_frame', 'failure', 'release', 'retry', 'stopped'):
             inflight.discard(key)
         numbers = {}
@@ -47,10 +51,14 @@ def summarize(lines):
                 delta = numbers['submitted_frames'] - previous['submitted_frames']
                 if delta >= 0:
                     row['latest_submitted_fps'] = round(delta / (timestamp - previous['at']), 2)
+            if previous and timestamp > previous['at'] and 'native_displayed' in previous and 'native_displayed' in numbers:
+                delta = numbers['native_displayed'] - previous['native_displayed']
+                if delta >= 0:
+                    row['latest_native_displayed_fps'] = round(delta / (timestamp - previous['at']), 2)
             row['last_health'] = dict(at=timestamp, **numbers)
     return dict(attempts=list(attempts.values()), max_inflight_starts_seen=maximum,
                 pending_starts_at_end=len(inflight), presentation_evidence='not_measured',
-                scope='Only complete 0.2.3 diagnostic events in the supplied log; partial captures can undercount startup concurrency.')
+                scope='Only recognized diagnostic events in the supplied log; partial captures can undercount startup concurrency.')
 
 
 def main():
