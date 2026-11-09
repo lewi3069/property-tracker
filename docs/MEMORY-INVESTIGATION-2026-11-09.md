@@ -46,7 +46,7 @@ No SDK fork, packet-dropping policy, decoder/encoder change, periodic restart or
 
 `scripts/compare-native-memory.py BEFORE.json AFTER.json` compares the existing private passive-measurement receipts. It rejects mismatched screen/boot/PID/start-tick/version identities, nonadvancing times and unsupported heap columns. It reports native/Java allocation, RSS and swap separately, along with matching attempts and resize counts. Its output excludes device, camera, session and boot identifiers, stream addresses and arbitrary input text.
 
-Eight Python checks passed: four existing playback-summary cases and four comparison cases covering growth accounting, restart/reboot/version rejection, malformed/time-mismatched inputs, privacy, and resize/replacement separation. Running the comparator on the two saved receipts reproduced the values above. CI now discovers both Python test files. The Android runtime is unchanged; the prior Android build/test results remain historical validation of 0.2.6, not evidence of a memory fix.
+Eight Python checks passed: four existing playback-summary cases and four comparison cases covering growth accounting, restart/reboot/version rejection, malformed/time-mismatched inputs, privacy, and resize/replacement separation. Running the comparator on the two saved receipts reproduced the values above. CI now discovers both Python test files. The [complete CI run for implementation commit `c399a69`](https://github.com/lewi3069/property-tracker/actions/runs/42712440323) passed TV/phone unit tests, both builds and lint, the eight Python checks, Windows script syntax and package compatibility guards. The Android runtime is unchanged; these host checks do not establish hardware memory stability.
 
 ## Required interactive test window
 
