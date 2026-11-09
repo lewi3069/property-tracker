@@ -38,7 +38,7 @@ Control-message handling retains its existing bounds: an 8 KiB MQTT payload chec
 
 ## Passive observation of the installed version
 
-The AFTKM viewer was already awake and displaying Property Tracker for each observation. The app process and boot identity remained unchanged at the sampled endpoints. Short screenshot samples at approximately 01:15, 01:45, 03:22, 05:00 and 06:00 Eastern showed all 13 camera crops changing at every interval; their monitored codec, graphics and system processes also remained unchanged. These are intermittent read-only observations, not continuous physical-TV observation throughout the intervening hours.
+The AFTKM viewer was already awake and displaying Property Tracker for each observation. The app process and boot identity remained unchanged at the sampled endpoints. Short screenshot samples at approximately 01:15, 01:45, 03:22, 05:00, 06:00 and 07:00 Eastern showed all 13 camera crops changing at every interval; their monitored codec, graphics and system processes also remained unchanged. These are intermittent read-only observations, not continuous physical-TV observation throughout the intervening hours.
 
 Native allocation continued upward in the installed **0.2.5** process:
 
@@ -53,8 +53,12 @@ Native allocation continued upward in the installed **0.2.5** process:
 | 05:00 | 737–739 | Four screenshots over 117 seconds; all 13 crops changed |
 | 05:28 | 757–758 | Resource and recent health-counter reading |
 | About 06:00 | 781–783 | Two screenshots over 65 seconds; all 13 crops changed |
+| 06:28 | 802–803 | Resource and recent health-counter reading |
+| About 07:00 | 836–838 | Two screenshots over 64 seconds; all 13 crops changed |
 
 These counters describe native allocations, not resident RAM. At 04:00, process RSS was approximately 602 MiB and process swap 66 MiB. At 05:28, RSS was approximately 379 MiB and process swap 357 MiB. The adjacent 05:58 resource point reported approximately 385 MiB RSS, 375 MiB process swap, 256 MiB system available memory and 49 MiB free out of 800 MiB system swap. Reduced RSS with higher swap and native allocation does not establish recovery or a memory plateau. Native allocation, RSS, PSS and swap are different accounting views and must not be added together.
+
+At 06:58, the lightweight resource point reported approximately 469 MiB RSS, 352 MiB process swap, 258 MiB system available memory and 84 MiB free system swap. Thread count remained 78. These variations in residency and swap did not stop the increase in native allocation; the cause remains unidentified.
 
 Brief CPU readings ranged around 2.5–3 of four cores. The 05:58 reading was approximately 66% of four-core capacity. The thermal service reported status 0 and current HAL temperatures of approximately 65.9°C CPU and 42.8°C GPU; cached temperatures were different. These are short resource readings, not matched performance benchmarks or evidence of a candidate CPU improvement.
 
@@ -62,7 +66,7 @@ The supplied recent logs contained no playback, stall, stopped or cleanup-failur
 
 The exact pinned SDK JNI sources were inspected for the statistics and current-track calls. The statistics wrapper uses a stack statistics structure and returns a Java sample; the current-track wrapper calls the core track-ID accessor. No retained native allocation was identified in those wrappers. This does not rule out a leak, retained allocator memory or buffering growth elsewhere in the SDK/core.
 
-Screenshot capture bounds are now recorded separately from later diagnostic reads and file saves. In the final timed sample, the screenshot request ran from 05:59:35.98 to 05:59:48.58 Eastern, while visible camera clocks read approximately 05:59:29–32. Capture duration and camera-clock offsets prevent an exact live-edge-delay claim. Earlier screenshots without capture bounds must not use their file modification time as the reference clock.
+Screenshot capture bounds are now recorded separately from later diagnostic reads and file saves. In the latest timed sample, the screenshot request ran from 06:59:51.05 to 07:00:02.95 Eastern, while visible camera clocks read approximately 06:59:44–47. Capture duration and camera-clock offsets prevent an exact live-edge-delay claim. Earlier screenshots without capture bounds must not use their file modification time as the reference clock. The observer requires at least two screenshots before reporting picture-progress success.
 
 A separate three-second, single-frame RTSP probe of a wider 1536 × 576 feed returned a current image on the host. Camera clocks were read without changing them. These point checks did not demonstrate a large accumulated playback delay; they are not a continuous or precisely synchronized latency benchmark. No encoder settings or TV views were changed.
 
