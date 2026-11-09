@@ -49,7 +49,7 @@ jobs:
             -keyalg RSA -keysize 2048 -validity 2 \
             -dname 'CN=Property Tracker CI,O=Build Verification,C=US'
       - name: Check diagnostic summaries
-        run: python3 -m unittest discover -s scripts -p test_summarize_playback.py
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
       - name: Check Windows build script syntax
         shell: pwsh
         run: |

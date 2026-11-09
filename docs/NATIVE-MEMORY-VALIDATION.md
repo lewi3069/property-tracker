@@ -1,6 +1,6 @@
 # Controlled native-memory validation
 
-This is a follow-up protocol, not a completed test. The [overnight review](OVERNIGHT-REVIEW-2026-11-09.md) found rising native-allocation counters in the installed 0.2.5 thirteen-camera wall. The 0.2.6 candidate has host-tested changes but remains uninstalled and unreleased. Advancing counters, fresh screenshot crops and a stable PID do not establish a stable memory budget or continuous physical presentation.
+This is a follow-up protocol, not a completed test. The [overnight review](OVERNIGHT-REVIEW-2026-11-09.md) found rising native-allocation counters in the installed 0.2.5 thirteen-camera wall. Version 0.2.6 was subsequently [installed on five TVs](DEPLOYMENT-026.md), and the [daytime investigation](MEMORY-INVESTIGATION-2026-11-09.md) confirmed continued same-process growth followed by SIGKILL. No public 0.2.6 APK or memory fix has been released. Advancing counters, fresh screenshot crops and a stable PID do not establish a stable memory budget or continuous physical presentation.
 
 ## Establish a comparable baseline
 
