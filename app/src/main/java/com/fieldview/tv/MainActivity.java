@@ -87,7 +87,7 @@ public final class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
-        layoutFullscreen = state != null && state.getBoolean("layoutFullscreen", false);
+        layoutFullscreen = state == null ? BuildConfig.TV_INTERFACE : state.getBoolean("layoutFullscreen", BuildConfig.TV_INTERFACE);
         setupOnly = getIntent().getBooleanExtra(EXTRA_SETUP_ONLY, false);
         if (state != null) { setupOnly = state.getBoolean("setupOnly", setupOnly); pendingFloatingCamera = state.getString("pendingFloatingCamera"); pendingNotificationCamera = state.getString("pendingNotificationCamera"); }
         if (!BuildConfig.TV_INTERFACE) getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
@@ -101,6 +101,7 @@ public final class MainActivity extends Activity {
                     .setPositiveButton("Close", (dialog, which) -> finish()).setCancelable(false).show();
             return;
         }
+        if (config.enabledCameras().isEmpty()) layoutFullscreen = false;
         ActivityManager memory = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
         playbackLimits = PlaybackLimits.forDevice(Build.MODEL, memory != null && memory.isLowRamDevice());
         // ViewSelector enforces the effective budget without overwriting the requested layout.

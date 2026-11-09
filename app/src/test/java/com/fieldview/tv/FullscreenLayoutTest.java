@@ -32,7 +32,8 @@ public class FullscreenLayoutTest {
     // Exercise real rendering, selection, and player reuse without opening network streams or a Keystore.
     @Implements(value = ConfigStore.class, isInAndroidSdk = false)
     public static class MemoryStore {
-        @Implementation protected AppConfig load() { return new AppConfig(); }
+        static AppConfig saved;
+        @Implementation protected AppConfig load() { return saved == null ? new AppConfig() : saved; }
         @Implementation protected void save(AppConfig config) { }
     }
 
@@ -61,6 +62,33 @@ public class FullscreenLayoutTest {
     }
     private ViewSelector selector(MainActivity activity) throws Exception {
         return (ViewSelector) field(MainActivity.class, "selector").get(activity);
+    }
+    @Test public void freshTvLaunchFillsSelectedLayoutAndBackSurvivesRecreation() throws Exception {
+        AppConfig saved = new AppConfig(); saved.visibleCount = 4; saved.useMainStream = false;
+        for (int i = 0; i < 4; i++) {
+            AppConfig.Camera camera = new AppConfig.Camera(); camera.id = "camera-" + i;
+            camera.name = "Camera " + i; camera.host = "192.0.2.10"; saved.cameras.add(camera);
+        }
+        MemoryStore.saved = saved; NoVideo.starts = 0;
+        ActivityController<MainActivity> controller = Robolectric.buildActivity(MainActivity.class).setup().visible().windowFocusChanged(true);
+        try {
+            shadowOf(Looper.getMainLooper()).idle(); MainActivity activity = controller.get();
+            assertFullLayout(activity, 4);
+            CameraTile first = tiles(activity).get("camera-0"); int starts = NoVideo.starts;
+            activity.onBackPressed(); shadowOf(Looper.getMainLooper()).idle();
+            assertEquals(View.VISIBLE, activity.findViewById(R.id.viewer_toolbar).getVisibility());
+            assertSame(first, tiles(activity).get("camera-0")); assertEquals(starts, NoVideo.starts);
+            controller.recreate(); shadowOf(Looper.getMainLooper()).idle();
+            assertEquals(View.VISIBLE, controller.get().findViewById(R.id.viewer_toolbar).getVisibility());
+        } finally { controller.pause().stop().destroy(); MemoryStore.saved = null; }
+    }
+    @Test public void firstLaunchWithNoCamerasKeepsSetupControlsVisible() {
+        MemoryStore.saved = null;
+        ActivityController<MainActivity> controller = Robolectric.buildActivity(MainActivity.class).setup().visible();
+        try {
+            shadowOf(Looper.getMainLooper()).idle();
+            assertEquals(View.VISIBLE, controller.get().findViewById(R.id.viewer_toolbar).getVisibility());
+        } finally { controller.pause().stop().destroy(); }
     }
     private ActivityController<MainActivity> open(int count, String model) throws Exception {
         NoVideo.starts = 0;

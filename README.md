@@ -4,7 +4,9 @@
 
 Property Tracker is a native Android APK for Android-based Fire TV sticks and NVIDIA Shield. It uses an Android Activity, native TV controls, and Media3 video surfaces. Its original development name was Fieldview; the Android package ID (`com.fieldview.tv`), encrypted-settings alias, and MQTT topic prefix remain stable so existing installations keep their configuration.
 
-[Download TV APK — 0.2.3](https://github.com/lewi3069/property-tracker/releases/tag/v0.2.3) or the [phone APK — 0.2.0](https://github.com/lewi3069/property-tracker/releases/tag/v0.2.0), or build them locally. The native [Pixel/phone app](docs/MOBILE.md) supports direct viewing with touch controls and both orientations. TV and phone builds share the camera core and use separate application IDs.
+[Download TV APK — 0.2.4](https://github.com/lewi3069/property-tracker/releases/tag/v0.2.4) or the [phone APK — 0.2.0](https://github.com/lewi3069/property-tracker/releases/tag/v0.2.0), or build them locally. The native [Pixel/phone app](docs/MOBILE.md) supports direct viewing with touch controls and both orientations. TV and phone builds share the camera core and use separate application IDs.
+
+Version 0.2.4 opens the TV app directly into the selected fullscreen camera layout. Press **Back** to reveal the controls. Empty-camera setup keeps its controls visible, and phone startup keeps its existing behavior.
 
 Version 0.2.3 stages camera startup and reconnects through a two-attempt queue, adds retry jitter and per-camera diagnostics, and keeps detection heartbeats from changing motion priority. **Layout → Experimental grid compatibility** enables an opt-in TextureView grid; single-camera and floating playback retain SurfaceView. The experiment defaults off and retains existing device limits. See [implementation and validation limits](docs/PLAYBACK-023.md).
 
@@ -34,14 +36,14 @@ Use JDK 21 and Android SDK 35/36 for the full build and test suite. TV retains i
 
 The bootstrap downloads official build tools into the ignored `.tools` directory and accepts their Android SDK build-tool licenses. JDK and Gradle archives are checksum-verified. No system-wide tool installation is needed. Build caches, debug signing key, and SDK stay in the project.
 
-Google Play preparation is documented in [the submission notes](store/play/submission-notes.md). The signed 0.2.1 Play candidate uses `com.lewi3069.propertytracker`; the historical debug phone ID is already occupied by another app on Google Play. Play Console setup and distribution choices are still pending. The downloadable phone APK remains 0.2.0; the TV release is 0.2.3.
+Google Play preparation is documented in [the submission notes](store/play/submission-notes.md). The signed 0.2.1 Play candidate uses `com.lewi3069.propertytracker`; the historical debug phone ID is already occupied by another app on Google Play. Play Console setup and distribution choices are still pending. The downloadable phone APK remains 0.2.0; the TV release is 0.2.4.
 
-The build creates `app/build/outputs/apk/debug/app-debug.apk` for TV and `mobile/build/outputs/apk/debug/mobile-debug.apk` for phones. A TV copy for installation is provided as `dist/property-tracker-0.2.3-debug.apk` after verification. This is a development APK signed with the same local debug key as earlier versions, so it can update the existing installation without clearing saved settings. A fresh bootstrap creates a new local signing key; updating an existing installation requires its original signing key or a matching signed release APK.
+The build creates `app/build/outputs/apk/debug/app-debug.apk` for TV and `mobile/build/outputs/apk/debug/mobile-debug.apk` for phones. A TV copy for installation is provided as `dist/property-tracker-0.2.4-debug.apk` after verification. This is a development APK signed with the same local debug key as earlier versions, so it can update the existing installation without clearing saved settings. A fresh bootstrap creates a new local signing key; updating an existing installation requires its original signing key or a matching signed release APK.
 
 Once ADB is paired with the target device:
 
 ```powershell
-adb -s DEVICE_ADDRESS:5555 install -r .\dist\property-tracker-0.2.3-debug.apk
+adb -s DEVICE_ADDRESS:5555 install -r .\dist\property-tracker-0.2.4-debug.apk
 adb -s DEVICE_ADDRESS:5555 shell am start -n com.fieldview.tv/.MainActivity
 ```
 
