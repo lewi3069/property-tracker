@@ -21,6 +21,8 @@ public final class ViewSelector {
     private String mode = AUTO, pinned;
     private String defaultCamera;
     private boolean motionLayoutEight;
+    private boolean multiMotionLayout;
+    private final MultiMotionLayout multiLayout = new MultiMotionLayout();
     private Selection current;
     private long changedAt;
     private long lastMotionEndedAt = Long.MIN_VALUE;
@@ -44,10 +46,12 @@ public final class ViewSelector {
         if (count < 1 || count > 13) throw new IllegalArgumentException("Camera count must be 1–13");
         capacity = Math.min(count, maxCapacity);
         current = null;
+        multiLayout.reset();
     }
     public int maxCapacity() { return maxCapacity; }
     public void setDefaultCamera(String id) { defaultCamera = id; }
     public void setMotionLayoutEight(boolean value) { motionLayoutEight = value; }
+    public void setMultiMotionLayout(boolean value) { if (multiMotionLayout != value) multiLayout.reset(); multiMotionLayout = value; }
 
     /** Keep activity/location and a valid manual selection when the catalog is edited. */
     public void reconfigure(List<String> ids, Map<String, List<String>> mapping) {
@@ -58,6 +62,7 @@ public final class ViewSelector {
         horses.entrySet().removeIf(entry -> !zones.containsKey(entry.getValue().zone));
         if (PIN.equals(mode) && !cameras.contains(pinned)) { mode = AUTO; pinned = null; }
         current = null;
+        multiLayout.reset();
     }
 
     public boolean setMode(String next, String cameraId) {
@@ -66,6 +71,7 @@ public final class ViewSelector {
         mode = next;
         pinned = PIN.equals(next) ? cameraId : null;
         current = null;
+        multiLayout.reset();
         return true;
     }
 
@@ -145,15 +151,21 @@ public final class ViewSelector {
         boolean hold = calmHold || ((!adaptive || !activitySelected) && current != null && !current.featured.isEmpty() && eligible.containsAll(current.featured)
                 && priority <= current.priority && within(now, changedAt, 8_000));
         if (!same && !hold) { current = new Selection(reason, priority, featured, Collections.emptyList(), mode); changedAt = now; }
-        LinkedHashSet<String> ordered = new LinkedHashSet<>(current.featured);
         boolean motionEight = adaptive && "activity".equals(current.reason);
+        int motionSlots = motionEight ? 1 : 0;
+        List<String> selected = current.featured;
+        if (motionEight && multiMotionLayout) {
+            MultiMotionLayout.State layout = multiLayout.update(now, motionIds, current.featured);
+            motionSlots = layout.slots; selected = layout.featured;
+        } else multiLayout.reset();
+        LinkedHashSet<String> ordered = new LinkedHashSet<>(selected);
         if (motionEight) ordered.addAll(motionIds);
         if (!PIN.equals(mode) && capacity == 13 && cameras.contains(defaultCamera)) ordered.add(defaultCamera);
         if (!PIN.equals(mode)) ordered.addAll(cameras);
         List<String> visible = new ArrayList<>(ordered);
-        int visibleLimit = motionEight ? 8 : capacity;
+        int visibleLimit = motionSlots == 4 ? 4 : motionSlots == 3 ? 7 : motionSlots == 2 ? 10 : motionEight ? 8 : capacity;
         if (visible.size() > visibleLimit) visible = new ArrayList<>(visible.subList(0, visibleLimit));
-        return new Selection(current.reason, current.priority, current.featured, visible, mode, motionEight);
+        return new Selection(current.reason, current.priority, selected, visible, mode, motionSlots);
     }
 
     private static boolean within(long now, long since, long duration) {
@@ -173,13 +185,18 @@ public final class ViewSelector {
         public final String reason, mode;
         public final int priority;
         public final boolean motionLayoutEight;
+        public final int motionLayoutSlots;
         public final List<String> featured, visible;
         Selection(String reason, int priority, List<String> featured, List<String> visible, String mode) {
             this(reason, priority, featured, visible, mode, false);
         }
         Selection(String reason, int priority, List<String> featured, List<String> visible, String mode, boolean motionLayoutEight) {
+            this(reason, priority, featured, visible, mode, motionLayoutEight ? 1 : 0);
+        }
+        Selection(String reason, int priority, List<String> featured, List<String> visible, String mode, int motionLayoutSlots) {
             this.reason = reason; this.priority = priority; this.mode = mode;
-            this.motionLayoutEight = motionLayoutEight;
+            this.motionLayoutSlots = motionLayoutSlots;
+            this.motionLayoutEight = motionLayoutSlots == 1;
             this.featured = Collections.unmodifiableList(new ArrayList<>(featured));
             this.visible = Collections.unmodifiableList(new ArrayList<>(visible));
         }

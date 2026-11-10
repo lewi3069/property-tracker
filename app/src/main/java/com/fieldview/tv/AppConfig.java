@@ -17,6 +17,7 @@ public final class AppConfig {
     public boolean denseGrid;
     public boolean highResolutionCenter;
     public boolean motionLayoutEight;
+    public boolean multiMotionLayout;
     public String spotlightCamera = "";
     public String site = BuildConfig.TV_INTERFACE ? "wrenhaven" : "home", display = BuildConfig.TV_INTERFACE ? "tv" : "phone", broker = "", brokerUser = "", brokerPassword = "";
     public String clientId = "fieldview-" + UUID.randomUUID().toString();
@@ -67,6 +68,7 @@ public final class AppConfig {
                 .put("softwareFloatingH264", softwareFloatingH264)
                 .put("textureGrid", textureGrid)
                 .put("denseGrid", denseGrid).put("highResolutionCenter", highResolutionCenter).put("motionLayoutEight", motionLayoutEight).put("spotlightCamera", spotlightCamera)
+                .put("multiMotionLayout", multiMotionLayout)
                 .put("site", site).put("display", display).put("broker", broker).put("brokerUser", brokerUser)
                 .put("brokerPassword", brokerPassword).put("clientId", clientId);
     }
@@ -77,6 +79,7 @@ public final class AppConfig {
         config.denseGrid = object.optBoolean("denseGrid", false);
         config.highResolutionCenter = object.optBoolean("highResolutionCenter", false);
         config.motionLayoutEight = object.optBoolean("motionLayoutEight", false);
+        config.multiMotionLayout = object.optBoolean("multiMotionLayout", false);
         config.spotlightCamera = object.optString("spotlightCamera", "");
         config.visibleCount = Math.max(1, Math.min(13, object.optInt("visibleCount", 4)));
         config.useMainStream = object.optBoolean("useMainStream", true);

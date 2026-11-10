@@ -299,6 +299,7 @@ public final class MainActivity extends Activity {
         selector.setDefaultCamera(config.spotlightCamera);
         selector.setMotionLayoutEight(config.motionLayoutEight && BuildConfig.TV_INTERFACE && Build.VERSION.SDK_INT >= 26
                 && config.denseGrid && config.textureGrid && playbackLimits.maxVisible == 13);
+        selector.setMultiMotionLayout(config.multiMotionLayout);
         router = new CommandRouter(selector, (count, until) -> { layoutOverrideUntil = until; selector.setCapacity(count); });
         signature = "";
     }
@@ -347,11 +348,11 @@ public final class MainActivity extends Activity {
             }
         }
         WallStreamPlan streams = new WallStreamPlan(selection, nativeGrid, config.useMainStream, config.highResolutionCenter, unavailable, config.motionLayoutEight);
-        String nextSignature = selection.reason + selection.visible + selection.featured + config.useMainStream + fullscreen + textureGrid + config.denseGrid + config.highResolutionCenter + config.motionLayoutEight + selection.motionLayoutEight;
+        String nextSignature = selection.reason + selection.visible + selection.featured + config.useMainStream + fullscreen + textureGrid + config.denseGrid + config.highResolutionCenter + config.motionLayoutEight + config.multiMotionLayout + selection.motionLayoutSlots;
         if (signature.equals(nextSignature)) return;
         signature = nextSignature;
         android.util.Log.i("FieldviewLayout", "mode=" + selection.mode + " visible=" + selection.visible.size()
-                + " reason=" + selection.reason + " motion_eight=" + selection.motionLayoutEight);
+                + " reason=" + selection.reason + " motion_eight=" + selection.motionLayoutEight + " motion_slots=" + selection.motionLayoutSlots);
         String previouslyFocused = null;
         for (Map.Entry<String, CameraTile> entry : tiles.entrySet()) if (entry.getValue().hasFocus()) previouslyFocused = entry.getKey();
         Iterator<Map.Entry<String, CameraTile>> iterator = tiles.entrySet().iterator();
@@ -396,7 +397,7 @@ public final class MainActivity extends Activity {
             else tile.play(stream, !stream.equals(camera.streamUri(false)));
             ordered.add(tile);
         }
-        wall.setOrder(ordered); wall.setFeaturedCount(selection.featured.size());
+        wall.setOrder(ordered); wall.setFeaturedCount(selection.featured.size()); wall.setMotionLayoutSlots(selection.motionLayoutSlots);
         if (previouslyFocused != null && !ordered.isEmpty()) {
             CameraTile old = tiles.get(previouslyFocused);
             (old == null ? ordered.get(0) : old).requestFocus();
@@ -460,6 +461,10 @@ public final class MainActivity extends Activity {
         motionEight.setId(R.id.layout_motion_eight); motionEight.setChecked(config.motionLayoutEight);
         motionEight.setEnabled(dense.isEnabled()); fields.addView(motionEight);
         fields.addView(label("For a 13-camera layout: motion immediately opens one large active view plus seven smaller cameras. With main streams enabled above, only the large view uses its main stream. The enlarged camera is held for at least 10 seconds; all 13 return after 15 seconds without motion. Grid and pinned views respond immediately.", 13));
+        CheckBox multiMotion = new CheckBox(this); multiMotion.setText("Auto: enlarge multiple active cameras");
+        multiMotion.setId(R.id.layout_multi_motion); multiMotion.setChecked(config.multiMotionLayout);
+        multiMotion.setEnabled(dense.isEnabled()); fields.addView(multiMotion);
+        fields.addView(label("With automatic motion layout enabled above: 1 active camera shows 1 large + 7 small; 2 show 2 large + 8 small; 3 show 3 large + 4 small; 4 or more show four large views. Additional detections expand the layout after 2 seconds; a lower activity count must remain for 15 seconds before shrinking it. At most one large view uses its main stream; the others use grid streams. Up to four active cameras are enlarged; newer detections take priority after the 10-second minimum hold.", 13));
         CheckBox highResolution = new CheckBox(this); highResolution.setText("Experimental high-resolution center (13 cameras)");
         highResolution.setId(R.id.layout_high_resolution_center);
         highResolution.setChecked(config.highResolutionCenter); highResolution.setEnabled(dense.isEnabled()); fields.addView(highResolution);
@@ -506,6 +511,7 @@ public final class MainActivity extends Activity {
                     next.denseGrid = dense.isChecked() && dense.isEnabled() && texture.isChecked();
                     next.highResolutionCenter = highResolution.isChecked();
                     next.motionLayoutEight = motionEight.isChecked();
+                    next.multiMotionLayout = multiMotion.isChecked();
                     next.spotlightCamera = spotlight.getSelectedItemPosition() == 0 ? "" : defaults.get(spotlight.getSelectedItemPosition() - 1).id;
                     if (save(next)) {
                         if (resetMainFailures) centerStreamBackoff.clear();

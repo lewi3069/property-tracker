@@ -8,6 +8,15 @@ import java.util.List;
 import static org.junit.Assert.*;
 
 public class CameraCatalogTest {
+    @Test public void multiMotionIsOptInAndPreservesExistingSettingsOnRoundTrip() throws Exception {
+        AppConfig config = new AppConfig(); config.cameras.add(camera("barn")); config.visibleCount = 13;
+        config.motionLayoutEight = true; config.brokerUser = "test-viewer"; config.brokerPassword = "test-only";
+        org.json.JSONObject old = config.toJson(); old.remove("multiMotionLayout"); assertFalse(AppConfig.fromJson(old).multiMotionLayout);
+        config.multiMotionLayout = true; AppConfig restored = AppConfig.fromJson(config.toJson());
+        assertTrue(restored.multiMotionLayout); assertTrue(restored.motionLayoutEight); assertEquals(13, restored.visibleCount);
+        assertEquals(config.clientId, restored.clientId); assertEquals(config.brokerPassword, restored.brokerPassword);
+        assertEquals(config.cameras.get(0).toJson().toString(), restored.cameras.get(0).toJson().toString());
+    }
     @Test public void motionLayoutDefaultsOffAndRoundTripsWithoutChangingTheSavedCountOrIdentity() throws Exception {
         AppConfig config = new AppConfig(); config.cameras.add(camera("barn")); config.visibleCount = 13;
         org.json.JSONObject old = config.toJson(); old.remove("motionLayoutEight");

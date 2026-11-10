@@ -342,6 +342,69 @@ public class FullscreenLayoutTest {
         } finally { NoVideo.beforeStart = null; controller.pause().stop().destroy(); }
     }
     @Test @org.robolectric.annotation.LooperMode(org.robolectric.annotation.LooperMode.Mode.PAUSED)
+    public void multiMotionRendersTwoThreeAndFourLargeWithOneMainAndPlayerReuse() throws Exception {
+        ActivityController<MainActivity> controller = open(13, "AFTKM");
+        try {
+            MainActivity activity = controller.get(); AppConfig config = (AppConfig) field(MainActivity.class, "config").get(activity);
+            for (int i = 9; i < 13; i++) {
+                AppConfig.Camera camera = new AppConfig.Camera(); camera.id = "camera-" + i; camera.name = "Camera " + i;
+                camera.host = "192.0.2.10"; config.cameras.add(camera);
+            }
+            config.textureGrid = config.denseGrid = config.useMainStream = config.motionLayoutEight = config.multiMotionLayout = true;
+            config.spotlightCamera = "camera-1";
+            field(MainActivity.class, "playbackLimits").set(activity, PlaybackLimits.forDevice("AFTKM", false, true));
+            invoke(activity, "resetSelector"); field(MainActivity.class, "setupOnly").set(activity, false);
+            field(MainActivity.class, "layoutFullscreen").set(activity, true); invoke(activity, "render"); assertFullLayout(activity, 13);
+            long now = org.robolectric.shadows.ShadowSystemClock.currentTimeMillis();
+            selector(activity).activity("camera-12", now, now + 120000); invoke(activity, "render"); assertFullLayout(activity, 8);
+            CameraTile primary = tiles(activity).get("camera-12"), neighbour = tiles(activity).get("camera-0");
+            selector(activity).activity("camera-11", now, now + 120000); invoke(activity, "render"); assertFullLayout(activity, 8);
+            org.robolectric.shadows.ShadowSystemClock.advanceBy(java.time.Duration.ofMillis(2100));
+            invoke(activity, "render"); assertFullLayout(activity, 10); assertMotionGeometry(activity, 2);
+            assertSame(primary, tiles(activity).get("camera-12")); assertSame(neighbour, tiles(activity).get("camera-0"));
+            assertTrue(tiles(activity).get("camera-11").usesNativeGrid());
+            java.util.Map<String, CameraTile> ten = new java.util.HashMap<>(tiles(activity));
+            now = org.robolectric.shadows.ShadowSystemClock.currentTimeMillis();
+            selector(activity).activity("camera-10", now, now + 120000); invoke(activity, "render"); assertFullLayout(activity, 10);
+            org.robolectric.shadows.ShadowSystemClock.advanceBy(java.time.Duration.ofMillis(2100));
+            invoke(activity, "render"); assertFullLayout(activity, 7); assertMotionGeometry(activity, 3);
+            now = org.robolectric.shadows.ShadowSystemClock.currentTimeMillis();
+            selector(activity).activity("camera-9", now, now + 120000); invoke(activity, "render");
+            org.robolectric.shadows.ShadowSystemClock.advanceBy(java.time.Duration.ofMillis(2100));
+            invoke(activity, "render"); assertFullLayout(activity, 4); assertMotionGeometry(activity, 4);
+            assertSame(primary, tiles(activity).get("camera-12"));
+            for (java.util.Map.Entry<String, CameraTile> old : ten.entrySet())
+                if (!tiles(activity).containsKey(old.getKey())) assertNull(field(CameraTile.class, "player").get(old.getValue()));
+            now = org.robolectric.shadows.ShadowSystemClock.currentTimeMillis();
+            for (int i = 9; i < 13; i++) selector(activity).clearActivity("camera-" + i, now);
+            invoke(activity, "render"); assertFullLayout(activity, 4);
+            org.robolectric.shadows.ShadowSystemClock.advanceBy(java.time.Duration.ofSeconds(15));
+            invoke(activity, "render"); assertFullLayout(activity, 13);
+            assertEquals("camera-1", selector(activity).snapshot(org.robolectric.shadows.ShadowSystemClock.currentTimeMillis()).visible.get(0));
+            assertEquals(13, config.visibleCount);
+            invoke(activity, "showLayout"); AlertDialog dialog = ShadowAlertDialog.getLatestAlertDialog();
+            CheckBox option = dialog.findViewById(R.id.layout_multi_motion); assertTrue(option.isChecked());
+            option.setChecked(false); dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick(); shadowOf(Looper.getMainLooper()).idle();
+            assertFalse(((AppConfig) field(MainActivity.class, "config").get(activity)).multiMotionLayout);
+        } finally { controller.pause().stop().destroy(); }
+    }
+    private void assertMotionGeometry(MainActivity activity, int slots) {
+        CameraWall wall = activity.findViewById(R.id.camera_wall);
+        long area = 0; int main = 0, large = 0;
+        java.util.List<android.graphics.Rect> bounds = new java.util.ArrayList<>();
+        for (int i = 0; i < wall.getChildCount(); i++) {
+            CameraTile tile = (CameraTile) wall.getChildAt(i);
+            android.graphics.Rect r = new android.graphics.Rect(tile.getLeft(), tile.getTop(), tile.getRight(), tile.getBottom());
+            for (android.graphics.Rect previous : bounds) assertFalse(android.graphics.Rect.intersects(previous, r));
+            bounds.add(r); area += (long) r.width() * r.height();
+            if (r.width() == 960) { assertEquals(540, r.height()); large++; }
+            else { assertEquals(480, r.width()); assertEquals(270, r.height()); }
+            if (!tile.usesNativeGrid()) main++;
+        }
+        assertEquals(1920L * 1080, area); assertEquals(1, main); assertEquals(slots, large);
+    }
+
+    @Test @org.robolectric.annotation.LooperMode(org.robolectric.annotation.LooperMode.Mode.PAUSED)
     public void adaptiveMotionReleasesHiddenPlayersAndReturnsToTheThirteenCameraOverview() throws Exception {
         ActivityController<MainActivity> controller = open(13, "AFTKM");
         try {

@@ -12,6 +12,25 @@ import static org.junit.Assert.*;
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = 28)
 public class WallStreamPlanTest {
+    @Test public void multiMotionLayoutsUseAtMostOneMainAndRespectQualityAndFallback() {
+        List<AppConfig.Camera> cameras = cameras(); List<String> ids = new ArrayList<>();
+        for (AppConfig.Camera camera : cameras) ids.add(camera.id);
+        for (int slots : new int[]{2, 3, 4}) {
+            int count = slots == 2 ? 10 : slots == 3 ? 7 : 4;
+            ViewSelector.Selection s = new ViewSelector.Selection("activity", 20, ids.subList(0, slots), ids.subList(0, count), ViewSelector.AUTO, slots);
+            WallStreamPlan plan = new WallStreamPlan(s, true, true, false, Collections.emptySet(), true);
+            int mains = 0, nativeCount = 0;
+            for (int i = 0; i < count; i++) { if (plan.main(cameras.get(i))) mains++; if (plan.nativeGrid(cameras.get(i))) nativeCount++; }
+            assertEquals(1, mains); assertEquals(count - 1, nativeCount);
+            WallStreamPlan fallback = new WallStreamPlan(s, true, true, false, Collections.singleton(ids.get(0)), true);
+            WallStreamPlan low = new WallStreamPlan(s, true, false, false, Collections.emptySet(), true);
+            for (int i = 0; i < count; i++) { assertTrue(fallback.nativeGrid(cameras.get(i))); assertTrue(low.nativeGrid(cameras.get(i))); }
+            assertTrue(fallback.mainUnavailable(cameras.get(0)));
+        }
+        ViewSelector.Selection ordinary = new ViewSelector.Selection("activity", 20, ids.subList(0, 4), ids.subList(0, 4), ViewSelector.AUTO);
+        WallStreamPlan plan = new WallStreamPlan(ordinary, true, true, false, Collections.emptySet(), true);
+        for (int i = 0; i < 4; i++) assertTrue(plan.nativeGrid(cameras.get(i)));
+    }
     @Test public void adaptiveMotionUsesOneMainAndSevenSubstreamsThenThirteenSubs() {
         List<AppConfig.Camera> cameras = cameras(); List<String> ids = new ArrayList<>();
         for (AppConfig.Camera camera : cameras) ids.add(camera.id);

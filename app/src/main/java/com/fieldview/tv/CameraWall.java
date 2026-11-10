@@ -10,11 +10,13 @@ import java.util.List;
 /** Native view placement: grid, one large feed, two large feeds, or fullscreen. */
 public final class CameraWall extends ViewGroup {
     private int featured;
+    private int motionLayoutSlots;
     private boolean fullscreen;
     private final List<Rect> frames = new ArrayList<>();
     private final List<View> ordered = new ArrayList<>();
     public CameraWall(Context context) { super(context); setClipChildren(true); }
     public void setFeaturedCount(int count) { featured = count; requestLayout(); }
+    public void setMotionLayoutSlots(int count) { motionLayoutSlots = count; requestLayout(); }
     public void setFullscreen(boolean value) { fullscreen = value; requestLayout(); }
     public void setOrder(List<View> views) { ordered.clear(); ordered.addAll(views); requestLayout(); }
 
@@ -40,6 +42,24 @@ public final class CameraWall extends ViewGroup {
         frames.clear();
         if (count == 0) return;
         if (count == 1) { add(0, 0, 1, 1, width, height); return; }
+        if (BuildConfig.TV_INTERFACE && motionLayoutSlots == 2 && count == 10) {
+            add(0, 0, .5, .5, width, height); add(.5, 0, 1, .5, width, height);
+            for (int row = 0; row < 2; row++) for (int column = 0; column < 4; column++)
+                add(column / 4.0, .5 + row / 4.0, (column + 1) / 4.0, .5 + (row + 1) / 4.0, width, height);
+            return;
+        }
+        if (BuildConfig.TV_INTERFACE && motionLayoutSlots == 4 && count == 4) {
+            for (int row = 0; row < 2; row++) for (int column = 0; column < 2; column++)
+                add(column / 2.0, row / 2.0, (column + 1) / 2.0, (row + 1) / 2.0, width, height);
+            return;
+        }
+        if (BuildConfig.TV_INTERFACE && motionLayoutSlots == 3 && count == 7) {
+            add(0, 0, .5, .5, width, height); add(.5, 0, 1, .5, width, height);
+            add(0, .5, .5, 1, width, height);
+            for (int row = 0; row < 2; row++) for (int column = 0; column < 2; column++)
+                add(.5 + column / 4.0, .5 + row / 4.0, .5 + (column + 1) / 4.0, .5 + (row + 1) / 4.0, width, height);
+            return;
+        }
         if (count == 13 && (BuildConfig.TV_INTERFACE || width >= height)) {
             add(.25, .25, .75, .75, width, height);
             for (int row = 0; row < 4; row++) for (int column = 0; column < 4; column++) {

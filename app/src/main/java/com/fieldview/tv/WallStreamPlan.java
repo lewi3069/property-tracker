@@ -21,7 +21,9 @@ final class WallStreamPlan {
         this.nativeGrid = nativeGrid;
         this.useMain = useMain;
         // The 13-tile geometry puts the first visible camera in the center, even in Grid/overview.
-        boolean motionEight = motionLayoutEight && selection.motionLayoutEight && selection.visible.size() == 8
+        int slots = selection.motionLayoutSlots;
+        int expected = slots == 1 ? 8 : slots == 2 ? 10 : slots == 3 ? 7 : slots == 4 ? 4 : 0;
+        boolean motionEight = motionLayoutEight && expected > 0 && selection.visible.size() == expected
                 && ViewSelector.AUTO.equals(selection.mode) && "activity".equals(selection.reason);
         center = nativeGrid && useMain && ((highResolutionCenter && selection.visible.size() == 13) || motionEight)
                 ? selection.visible.get(0) : "";
