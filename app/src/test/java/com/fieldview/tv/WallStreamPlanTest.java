@@ -28,12 +28,16 @@ public class WallStreamPlanTest {
         assertEquals(1, main); assertEquals(7, nativeCount);
         assertFalse(new WallStreamPlan(active, true, false, false, Collections.emptySet(), true).main(cameras.get(12)));
         assertFalse(new WallStreamPlan(active, true, true, false, Collections.singleton("camera-12"), true).main(cameras.get(12)));
-        selector.clearActivity("camera-12"); ViewSelector.Selection overview = selector.snapshot(1);
+        selector.clearActivity("camera-12", 1);
+        ViewSelector.Selection quiet = selector.snapshot(15000);
+        assertEquals(8, quiet.visible.size());
+        assertTrue(new WallStreamPlan(quiet, true, true, false, Collections.emptySet(), true).main(cameras.get(12)));
+        ViewSelector.Selection overview = selector.snapshot(15001);
         WallStreamPlan restored = new WallStreamPlan(overview, true, true, false, Collections.emptySet(), true);
         assertEquals(13, overview.visible.size());
         for (AppConfig.Camera camera : cameras) { assertFalse(restored.main(camera)); assertTrue(restored.nativeGrid(camera)); }
-        selector.setCapacity(8); selector.activity("camera-12", 2, 10000);
-        ViewSelector.Selection ordinaryEight = selector.snapshot(2);
+        selector.setCapacity(8); selector.activity("camera-12", 16000, 46000);
+        ViewSelector.Selection ordinaryEight = selector.snapshot(16000);
         assertFalse(ordinaryEight.motionLayoutEight);
         assertFalse(new WallStreamPlan(ordinaryEight, true, true, false, Collections.emptySet(), true).main(cameras.get(12)));
     }

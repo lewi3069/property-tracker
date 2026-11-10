@@ -36,6 +36,18 @@ public class CommandRouterTest {
         assertFalse(router.accept(off, false, 1001));
     }
 
+    @Test public void adaptiveLayoutMeasuresQuietTimeFromMotionOffReceiptNotItsEnvelopeExpiry() throws Exception {
+        java.util.List<String> ids = new java.util.ArrayList<>(); ids.add("barn");
+        for (int i = 0; i < 12; i++) ids.add("camera-" + i);
+        ViewSelector selector = new ViewSelector(ids, Collections.emptyMap(), 13, 13); selector.setMotionLayoutEight(true);
+        CommandRouter router = new CommandRouter(selector, (count, until) -> fail());
+        assertTrue(router.accept(activity("on", 30000), false, 0)); selector.snapshot(0);
+        String off = new JSONObject().put("type", "activity_end").put("camera_id", "barn").put("event_id", "off").put("expires_at", 31000).toString();
+        assertTrue(router.accept(off, false, 1000)); assertEquals(8, selector.snapshot(15999).visible.size());
+        assertTrue(router.accept(off.replace("\"off\"", "\"repeat-off\""), false, 15999));
+        assertEquals(13, selector.snapshot(16000).visible.size());
+    }
+
     @Test public void floatingControlsRejectRetainedExpiredUnknownAndDuplicateRequests() {
         int[] applied = {0};
         CommandRouter router = new CommandRouter((id, active, now, until) -> "barn".equals(id), (action, id) -> { if ("select".equals(action) && !"barn".equals(id)) return false; applied[0]++; return true; });

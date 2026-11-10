@@ -23,6 +23,8 @@ public final class ViewSelector {
     private boolean motionLayoutEight;
     private Selection current;
     private long changedAt;
+    private long lastMotionEndedAt = Long.MIN_VALUE;
+    private static final long MOTION_CAMERA_DWELL_MS = 10_000, MOTION_QUIET_MS = 15_000;
 
     public ViewSelector(List<String> cameraIds, Map<String, List<String>> zoneCameras, int capacity) {
         this(cameraIds, zoneCameras, capacity, 9);
@@ -85,9 +87,12 @@ public final class ViewSelector {
         return true;
     }
 
-    public boolean clearActivity(String id) {
+    public boolean clearActivity(String id, long now) {
         if (!cameras.contains(id)) return false;
-        motions.remove(id);
+        Motion removed = motions.remove(id);
+        // Repeated off messages must not extend the quiet period. An already-expired
+        // event ended at its deadline, even if we did not render while backgrounded.
+        if (removed != null) lastMotionEndedAt = Math.max(lastMotionEndedAt, Math.min(now, removed.expiresAt));
         return true;
     }
 
@@ -102,7 +107,11 @@ public final class ViewSelector {
     }
 
     public Selection snapshot(long now) {
-        motions.entrySet().removeIf(entry -> entry.getValue().expiresAt <= now);
+        motions.entrySet().removeIf(entry -> {
+            if (entry.getValue().expiresAt > now) return false;
+            lastMotionEndedAt = Math.max(lastMotionEndedAt, entry.getValue().expiresAt);
+            return true;
+        });
         horses.entrySet().removeIf(entry -> now - entry.getValue().updatedAt >= 60_000);
         List<String> motionIds = new ArrayList<>(motions.keySet());
         motionIds.sort(Comparator.<String>comparingLong(id -> motions.get(id).triggeredAt).reversed().thenComparing(id -> id));
@@ -126,12 +135,18 @@ public final class ViewSelector {
 
         boolean same = current != null && current.reason.equals(reason) && current.featured.equals(featured);
         List<String> eligible = current != null && current.reason.equals("activity") ? motionIds : presenceIds;
-        boolean hold = current != null && !current.featured.isEmpty() && eligible.containsAll(current.featured)
-                && priority <= current.priority && now - changedAt < 8_000;
+        boolean adaptive = motionLayoutEight && capacity == 13 && cameras.size() >= 13 && AUTO.equals(mode);
+        boolean activitySelected = current != null && "activity".equals(current.reason);
+        // Keep the first detection immediate, but avoid cycling main decoders on
+        // short motion/off bursts. Other layouts and explicit Grid/Pin stay immediate.
+        boolean calmHold = adaptive && activitySelected && (motionIds.isEmpty()
+                ? within(now, lastMotionEndedAt, MOTION_QUIET_MS)
+                : within(now, changedAt, MOTION_CAMERA_DWELL_MS));
+        boolean hold = calmHold || ((!adaptive || !activitySelected) && current != null && !current.featured.isEmpty() && eligible.containsAll(current.featured)
+                && priority <= current.priority && within(now, changedAt, 8_000));
         if (!same && !hold) { current = new Selection(reason, priority, featured, Collections.emptyList(), mode); changedAt = now; }
         LinkedHashSet<String> ordered = new LinkedHashSet<>(current.featured);
-        boolean motionEight = motionLayoutEight && capacity == 13 && cameras.size() >= 13
-                && AUTO.equals(mode) && "activity".equals(current.reason);
+        boolean motionEight = adaptive && "activity".equals(current.reason);
         if (motionEight) ordered.addAll(motionIds);
         if (!PIN.equals(mode) && capacity == 13 && cameras.contains(defaultCamera)) ordered.add(defaultCamera);
         if (!PIN.equals(mode)) ordered.addAll(cameras);
@@ -139,6 +154,10 @@ public final class ViewSelector {
         int visibleLimit = motionEight ? 8 : capacity;
         if (visible.size() > visibleLimit) visible = new ArrayList<>(visible.subList(0, visibleLimit));
         return new Selection(current.reason, current.priority, current.featured, visible, mode, motionEight);
+    }
+
+    private static boolean within(long now, long since, long duration) {
+        return since != Long.MIN_VALUE && now >= since && now - since < duration;
     }
 
     private static final class Motion {

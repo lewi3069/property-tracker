@@ -20,7 +20,7 @@ public final class CommandRouter {
     private final Map<String, Long> horseTimes = new HashMap<>();
     public CommandRouter(ViewSelector selector, LayoutHandler layouts) {
         this.selector = selector; this.layouts = layouts; this.floating = null;
-        this.activities = (id, active, now, until) -> active ? selector.activity(id, now, until) : selector.clearActivity(id);
+        this.activities = (id, active, now, until) -> active ? selector.activity(id, now, until) : selector.clearActivity(id, now);
     }
     public CommandRouter(ActivityHandler activities, FloatingHandler floating) {
         this.selector = null; this.layouts = null; this.activities = activities; this.floating = floating;

@@ -459,7 +459,7 @@ public final class MainActivity extends Activity {
         CheckBox motionEight = new CheckBox(this); motionEight.setText("Auto: show 8 cameras during motion, then return to 13");
         motionEight.setId(R.id.layout_motion_eight); motionEight.setChecked(config.motionLayoutEight);
         motionEight.setEnabled(dense.isEnabled()); fields.addView(motionEight);
-        fields.addView(label("For a 13-camera layout: motion opens one large active view plus seven smaller cameras. With main streams enabled above, only the large view uses its main stream. All 13 return when every motion event clears or expires. Grid and pinned views keep their chosen layout.", 13));
+        fields.addView(label("For a 13-camera layout: motion immediately opens one large active view plus seven smaller cameras. With main streams enabled above, only the large view uses its main stream. The enlarged camera is held for at least 10 seconds; all 13 return after 15 seconds without motion. Grid and pinned views respond immediately.", 13));
         CheckBox highResolution = new CheckBox(this); highResolution.setText("Experimental high-resolution center (13 cameras)");
         highResolution.setId(R.id.layout_high_resolution_center);
         highResolution.setChecked(config.highResolutionCenter); highResolution.setEnabled(dense.isEnabled()); fields.addView(highResolution);

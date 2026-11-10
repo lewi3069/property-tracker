@@ -320,7 +320,7 @@ public class FullscreenLayoutTest {
             assertTrue(tiles(activity).get("camera-1").usesNativeGrid());
             CameraTile active = tiles(activity).get("camera-2"); assertFalse(active.usesNativeGrid());
             assertTrue(field(CameraTile.class, "mainStream").getBoolean(active));
-            NoVideo.beforeStart = null; selector(activity).clearActivity("camera-2"); invoke(activity, "render");
+            NoVideo.beforeStart = null; selector(activity).clearActivity("camera-2", System.currentTimeMillis()); invoke(activity, "render");
             assertNull(field(CameraTile.class, "player").get(active));
             CameraTile returned = tiles(activity).get("camera-1"); assertFalse(returned.usesNativeGrid());
             int starts = NoVideo.starts; selector(activity).setMode(ViewSelector.GRID, null); invoke(activity, "render");
@@ -331,7 +331,7 @@ public class FullscreenLayoutTest {
             assertTrue(field(CameraTile.class, "mainSuppressed").getBoolean(fallback));
             selector(activity).setMode(ViewSelector.AUTO, null);
             selector(activity).activity("camera-2", System.currentTimeMillis(), System.currentTimeMillis() + 30000); invoke(activity, "render");
-            selector(activity).clearActivity("camera-2"); selector(activity).setMode(ViewSelector.AUTO, null); invoke(activity, "render");
+            selector(activity).clearActivity("camera-2", System.currentTimeMillis()); selector(activity).setMode(ViewSelector.AUTO, null); invoke(activity, "render");
             assertTrue("Motion return must respect the failed-main cooldown", tiles(activity).get("camera-1").usesNativeGrid());
             invoke(activity, "showLayout"); AlertDialog dialog = ShadowAlertDialog.getLatestAlertDialog();
             CheckBox option = dialog.findViewById(R.id.layout_high_resolution_center); assertTrue(option.isChecked());
@@ -341,7 +341,8 @@ public class FullscreenLayoutTest {
             for (CameraTile tile : tiles(activity).values()) assertTrue(tile.usesNativeGrid());
         } finally { NoVideo.beforeStart = null; controller.pause().stop().destroy(); }
     }
-    @Test public void adaptiveMotionReleasesHiddenPlayersAndReturnsToTheThirteenCameraOverview() throws Exception {
+    @Test @org.robolectric.annotation.LooperMode(org.robolectric.annotation.LooperMode.Mode.PAUSED)
+    public void adaptiveMotionReleasesHiddenPlayersAndReturnsToTheThirteenCameraOverview() throws Exception {
         ActivityController<MainActivity> controller = open(13, "AFTKM");
         try {
             MainActivity activity = controller.get(); AppConfig config = (AppConfig) field(MainActivity.class, "config").get(activity);
@@ -361,7 +362,9 @@ public class FullscreenLayoutTest {
                         assertNull("Hidden/replaced players must retire before main starts", field(CameraTile.class, "player").get(original.get(id)));
                 } catch (Exception e) { throw new AssertionError(e); }
             };
-            selector(activity).activity("camera-12", System.currentTimeMillis(), System.currentTimeMillis() + 30000); invoke(activity, "render");
+            // App bytecode uses Robolectric's clock; the test runner's JDK System clock is real.
+            long motionAt = org.robolectric.shadows.ShadowSystemClock.currentTimeMillis();
+            selector(activity).activity("camera-12", motionAt, motionAt + 30000); invoke(activity, "render");
             NoVideo.beforeStart = null; assertFullLayout(activity, 8);
             CameraTile main = tiles(activity).get("camera-12"); assertFalse(main.usesNativeGrid());
             assertTrue(field(CameraTile.class, "mainStream").getBoolean(main)); assertEquals(1440, main.getWidth()); assertEquals(810, main.getHeight());
@@ -377,8 +380,17 @@ public class FullscreenLayoutTest {
             ((Runnable) field(CameraTile.class, "mainUnavailable").get(main)).run(); shadowOf(Looper.getMainLooper()).idle();
             assertFullLayout(activity, 8); for (CameraTile tile : tiles(activity).values()) assertTrue(tile.usesNativeGrid());
             assertTrue(field(CameraTile.class, "mainSuppressedFormatUnsupported").getBoolean(tiles(activity).get("camera-12")));
-            selector(activity).clearActivity("camera-12"); invoke(activity, "render"); assertFullLayout(activity, 13);
-            assertEquals("camera-1", selector(activity).snapshot(System.currentTimeMillis()).visible.get(0));
+            long clearAt = org.robolectric.shadows.ShadowSystemClock.currentTimeMillis();
+            selector(activity).clearActivity("camera-12", clearAt);
+            assertEquals(8, selector(activity).snapshot(clearAt).visible.size());
+            CameraTile held = tiles(activity).get("camera-12"); int starts = NoVideo.starts;
+            invoke(activity, "render"); assertFullLayout(activity, 8);
+            org.robolectric.shadows.ShadowSystemClock.advanceBy(java.time.Duration.ofSeconds(10));
+            invoke(activity, "render"); assertFullLayout(activity, 8);
+            assertSame(held, tiles(activity).get("camera-12")); assertEquals(starts, NoVideo.starts);
+            org.robolectric.shadows.ShadowSystemClock.advanceBy(java.time.Duration.ofSeconds(5));
+            invoke(activity, "render"); assertFullLayout(activity, 13);
+            assertEquals("camera-1", selector(activity).snapshot(org.robolectric.shadows.ShadowSystemClock.currentTimeMillis()).visible.get(0));
             assertEquals(13, config.visibleCount); assertFalse(config.highResolutionCenter);
             invoke(activity, "showLayout"); AlertDialog dialog = ShadowAlertDialog.getLatestAlertDialog();
             CheckBox option = dialog.findViewById(R.id.layout_motion_eight); assertTrue(option.isChecked());

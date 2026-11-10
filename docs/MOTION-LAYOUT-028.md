@@ -1,5 +1,7 @@
 # Adaptive motion layout (0.2.8)
 
+Version 0.2.10 adds [a ten-second camera hold and fifteen-second quiet return](MOTION-TIMING-0210.md) to reduce frequent switching. The results below describe the original 0.2.8 timing.
+
 Enable **Layout → Auto: show 8 cameras during motion, then return to 13** on an eligible native 13-camera TV profile. The preference defaults off on existing installations.
 
 - With no motion, Auto shows the normal thirteen-camera layout, using its usual location/default-center policy.
