@@ -15,6 +15,7 @@ public final class AppConfig {
     public boolean softwareFloatingH264;
     public boolean textureGrid;
     public boolean denseGrid;
+    public boolean highResolutionCenter;
     public String spotlightCamera = "";
     public String site = BuildConfig.TV_INTERFACE ? "wrenhaven" : "home", display = BuildConfig.TV_INTERFACE ? "tv" : "phone", broker = "", brokerUser = "", brokerPassword = "";
     public String clientId = "fieldview-" + UUID.randomUUID().toString();
@@ -64,7 +65,7 @@ public final class AppConfig {
         return object.put("cameras", list).put("visibleCount", visibleCount).put("useMainStream", useMainStream)
                 .put("softwareFloatingH264", softwareFloatingH264)
                 .put("textureGrid", textureGrid)
-                .put("denseGrid", denseGrid).put("spotlightCamera", spotlightCamera)
+                .put("denseGrid", denseGrid).put("highResolutionCenter", highResolutionCenter).put("spotlightCamera", spotlightCamera)
                 .put("site", site).put("display", display).put("broker", broker).put("brokerUser", brokerUser)
                 .put("brokerPassword", brokerPassword).put("clientId", clientId);
     }
@@ -73,6 +74,7 @@ public final class AppConfig {
         AppConfig config = new AppConfig();
         config.textureGrid = object.optBoolean("textureGrid", false);
         config.denseGrid = object.optBoolean("denseGrid", false);
+        config.highResolutionCenter = object.optBoolean("highResolutionCenter", false);
         config.spotlightCamera = object.optString("spotlightCamera", "");
         config.visibleCount = Math.max(1, Math.min(13, object.optInt("visibleCount", 4)));
         config.useMainStream = object.optBoolean("useMainStream", true);

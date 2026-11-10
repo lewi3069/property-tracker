@@ -8,7 +8,7 @@ Property Tracker is a native Android APK for Android-based Fire TV sticks and NV
 
 Version 0.2.5 adds an **opt-in 13-camera TV layout**: one large center camera with 12 around it, plus a default center selection. Enable **Layout → Experimental larger layouts**, then choose 13. This uses native software decoding and existing substreams; ordinary playback limits remain the default. See [implementation, device results and remaining limits](docs/PLAYBACK-025.md).
 
-Development source is 0.2.6; the downloadable TV release remains 0.2.5. Version 0.2.6 was [installed on five TVs](docs/DEPLOYMENT-026.md). The [memory investigation](docs/MEMORY-INVESTIGATION-2026-11-09.md) confirms continued native-allocation growth and a subsequent SIGKILL; the trigger for that kill remains unproven. The [overnight review](docs/OVERNIGHT-REVIEW-2026-11-09.md) records the earlier host improvements and observations.
+Development source is 0.2.7, adding an [opt-in high-resolution center](docs/HIGH-RESOLUTION-CENTER.md) to the 13-camera layout. The downloadable TV release remains 0.2.5. Version 0.2.6 was [installed on five TVs](docs/DEPLOYMENT-026.md). The [memory investigation](docs/MEMORY-INVESTIGATION-2026-11-09.md) confirms continued native-allocation growth and a subsequent SIGKILL; the trigger for that kill remains unproven. The [overnight review](docs/OVERNIGHT-REVIEW-2026-11-09.md) records the earlier host improvements and observations.
 
 A later [native output experiment](docs/NATIVE-OUTPUT-TRIAL.md) identified retained Fire OS frame-timing allocations. Its debug-only SurfaceView prototype is **disabled by default** and restricted to the tested TV profile; layout/compositor limits and multi-hour stability still need validation. No experimental APK is published.
 

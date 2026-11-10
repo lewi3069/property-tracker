@@ -44,6 +44,7 @@ public final class MainActivity extends Activity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final StartupCoordinator startupCoordinator = StartupCoordinator.shared();
     private final Map<String, CameraTile> tiles = new LinkedHashMap<>();
+    private final CenterStreamBackoff centerStreamBackoff = new CenterStreamBackoff();
     private ConfigStore store;
     private AppConfig config;
     private List<AppConfig.Camera> enabledCameras = new ArrayList<>();
@@ -335,7 +336,11 @@ public final class MainActivity extends Activity {
         boolean textureGrid = config.textureGrid && selection.visible.size() > 1;
         boolean nativeGrid = BuildConfig.TV_INTERFACE && Build.VERSION.SDK_INT >= 26
                 && config.denseGrid && textureGrid && playbackLimits.maxVisible == 13;
-        String nextSignature = selection.reason + selection.visible + selection.featured + config.useMainStream + fullscreen + textureGrid + config.denseGrid;
+        java.util.Set<String> unavailable = new java.util.HashSet<>();
+        if (nativeGrid && config.highResolutionCenter) for (String id : selection.visible)
+            if (centerStreamBackoff.blocked(camera(id), android.os.SystemClock.elapsedRealtime())) unavailable.add(id);
+        WallStreamPlan streams = new WallStreamPlan(selection, nativeGrid, config.useMainStream, config.highResolutionCenter, unavailable);
+        String nextSignature = selection.reason + selection.visible + selection.featured + config.useMainStream + fullscreen + textureGrid + config.denseGrid + config.highResolutionCenter;
         if (signature.equals(nextSignature)) return;
         signature = nextSignature;
         String previouslyFocused = null;
@@ -343,22 +348,22 @@ public final class MainActivity extends Activity {
         Iterator<Map.Entry<String, CameraTile>> iterator = tiles.entrySet().iterator();
         while (iterator.hasNext()) {
             Map.Entry<String, CameraTile> entry = iterator.next();
-            if (!selection.visible.contains(entry.getKey()) || entry.getValue().usesTexture() != textureGrid
-                    || entry.getValue().usesNativeGrid() != nativeGrid) {
+            if (!selection.visible.contains(entry.getKey()) || entry.getValue().usesTexture() != (textureGrid && !streams.highResolutionCenter(camera(entry.getKey())))
+                    || entry.getValue().usesNativeGrid() != streams.nativeGrid(camera(entry.getKey()))) {
                 entry.getValue().release(); wall.removeView(entry.getValue()); iterator.remove();
             }
         }
         List<View> ordered = new ArrayList<>();
         // Demote existing featured feeds before starting any new high-resolution streams.
         for (Map.Entry<String, CameraTile> entry : tiles.entrySet()) {
-            if (!config.useMainStream || !selection.featured.contains(entry.getKey()))
+            if (!streams.main(camera(entry.getKey())))
                 entry.getValue().play(camera(entry.getKey()).streamUri(false), false);
         }
         for (String id : selection.visible) {
             AppConfig.Camera camera = camera(id);
             CameraTile tile = tiles.get(id);
             if (tile == null) {
-                tile = new CameraTile(this, camera.name, false, textureGrid, nativeGrid);
+                tile = new CameraTile(this, camera.name, false, textureGrid && !streams.highResolutionCenter(camera), streams.nativeGrid(camera));
                 tile.configureStartup(startupCoordinator, id);
                 tile.setOnClickListener(view -> {
                     if (!BuildConfig.TV_INTERFACE && ViewSelector.PIN.equals(selector.snapshot(System.currentTimeMillis()).mode)) showPhoneControls();
@@ -369,10 +374,16 @@ public final class MainActivity extends Activity {
             tile.setContentDescription("Enlarge " + camera.name);
             boolean featured = selection.featured.contains(id);
             tile.setFullscreen(fullscreen, !pinned && selection.visible.size() > 1);
-            tile.setFeatured(featured);
-            boolean main = config.useMainStream && featured && !nativeGrid;
+            tile.setFeatured(featured || streams.highResolutionCenter(camera));
+            tile.setMainSuppressed(streams.mainUnavailable(camera));
+            tile.setMainUnavailableListener(streams.highResolutionCenter(camera) ? () -> {
+                centerStreamBackoff.failed(camera, android.os.SystemClock.elapsedRealtime());
+                handler.post(() -> { signature = ""; render(); });
+            } : null);
+            boolean main = streams.main(camera);
             String stream = camera.streamUri(main);
-            tile.play(stream, !stream.equals(camera.streamUri(false)));
+            if (streams.highResolutionCenter(camera)) tile.playMainOrGrid(stream, camera.streamUri(false));
+            else tile.play(stream, !stream.equals(camera.streamUri(false)));
             ordered.add(tile);
         }
         wall.setOrder(ordered); wall.setFeaturedCount(selection.featured.size());
@@ -435,6 +446,10 @@ public final class MainActivity extends Activity {
         dense.setChecked(config.denseGrid); fields.addView(dense);
         dense.setEnabled(BuildConfig.TV_INTERFACE && Build.VERSION.SDK_INT >= 26 && limitsFor(true, true).maxVisible == 13);
         fields.addView(label("Requires grid compatibility above. Uses grid streams and the native software video engine. More feeds use more CPU and memory and may reduce frame rate. Start with fewer cameras before trying 13.", 13));
+        CheckBox highResolution = new CheckBox(this); highResolution.setText("Experimental high-resolution center (13 cameras)");
+        highResolution.setId(R.id.layout_high_resolution_center);
+        highResolution.setChecked(config.highResolutionCenter); highResolution.setEnabled(dense.isEnabled()); fields.addView(highResolution);
+        fields.addView(label("With main streams enabled above, the large center camera uses a hardware-decoded main stream. Surrounding cameras keep grid streams. A failed main stream falls back to grid video, with at least five minutes before a later center change can retry it. Toggle this option off and on to retry sooner.", 13));
         List<AppConfig.Camera> defaults = config.enabledCameras();
         String[] defaultNames = new String[defaults.size() + 1]; defaultNames[0] = "First enabled camera";
         int defaultIndex = 0;
@@ -468,13 +483,16 @@ public final class MainActivity extends Activity {
         AlertDialog.Builder layoutDialog = new AlertDialog.Builder(this).setTitle("Screen layout").setView(scroll).setNegativeButton("Cancel", null)
                 .setPositiveButton("Save", (dialog, which) -> {
                     AppConfig next = copyConfig();
+                    boolean resetMainFailures = config.highResolutionCenter != highResolution.isChecked() || config.useMainStream != quality.isChecked();
                     next.visibleCount = countOptions[0][count.getSelectedItemPosition()];
                     next.useMainStream = quality.isChecked();
                     next.softwareFloatingH264 = softwareFloat.isChecked();
                     next.textureGrid = texture.isChecked();
                     next.denseGrid = dense.isChecked() && dense.isEnabled() && texture.isChecked();
+                    next.highResolutionCenter = highResolution.isChecked();
                     next.spotlightCamera = spotlight.getSelectedItemPosition() == 0 ? "" : defaults.get(spotlight.getSelectedItemPosition() - 1).id;
                     if (save(next)) {
+                        if (resetMainFailures) centerStreamBackoff.clear();
                         layoutFullscreen = fullLayout.isChecked();
                         if (layoutFullscreen) setupOnly = false;
                         layoutOverrideUntil = 0;

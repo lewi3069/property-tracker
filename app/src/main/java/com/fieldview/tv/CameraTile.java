@@ -52,6 +52,10 @@ public final class CameraTile extends FrameLayout {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private ExoPlayer player;
     private String activeUri;
+    private String requestedUri, fallbackUri;
+    private boolean fallbackActive;
+    private boolean mainSuppressed;
+    private Runnable mainUnavailable;
     private Runnable retry;
     private Runnable stalled;
     private VideoProgress progress;
@@ -100,6 +104,8 @@ public final class CameraTile extends FrameLayout {
     public void setFeatured(boolean value) { featured = value; if (startup != null) startup.prioritize(value); updateBorder(); }
     boolean usesTexture() { return texture; }
     boolean usesNativeGrid() { return nativeGrid; }
+    void setMainUnavailableListener(Runnable value) { mainUnavailable = value; }
+    void setMainSuppressed(boolean value) { mainSuppressed = value; if (firstFrame) showStatus(liveStatus()); }
     @Override protected void onSizeChanged(int width, int height, int oldWidth, int oldHeight) {
         super.onSizeChanged(width, height, oldWidth, oldHeight);
         if (nativeGrid && width > 0 && height > 0 && (width != oldWidth || height != oldHeight)) nativeTileResizes++;
@@ -114,6 +120,13 @@ public final class CameraTile extends FrameLayout {
         return (mime, secure, tunneling) -> {
             List<MediaCodecInfo> codecs = new ArrayList<>(base.getDecoderInfos(mime, secure, tunneling));
             codecs.sort((a, b) -> Boolean.compare(b.softwareOnly, a.softwareOnly));
+            return codecs;
+        };
+    }
+    static MediaCodecSelector hardwareOnly(MediaCodecSelector base) {
+        return (mime, secure, tunneling) -> {
+            List<MediaCodecInfo> codecs = new ArrayList<>(base.getDecoderInfos(mime, secure, tunneling));
+            codecs.removeIf(codec -> !codec.hardwareAccelerated);
             return codecs;
         };
     }
@@ -145,12 +158,23 @@ public final class CameraTile extends FrameLayout {
         cameraLabel = cameraId != null && cameraId.matches("[A-Za-z0-9_-]{1,80}") ? cameraId : "tile-" + getId();
     }
     void play(String uri, boolean useMain) {
-        if (!released && uri.equals(activeUri) && (player != null || gridSession != null || retry != null || startup != null)) return;
+        playRequest(uri, useMain, null);
+    }
+    void playMainOrGrid(String main, String grid) {
+        playRequest(main, !main.equals(grid), main.equals(grid) ? null : grid);
+    }
+    private void playRequest(String uri, boolean useMain, String fallback) {
+        boolean sameRequest = !released && uri.equals(requestedUri) && java.util.Objects.equals(fallback, fallbackUri);
+        if (sameRequest
+                && (player != null || gridSession != null || retry != null || startup != null)) return;
         disposePlayer();
-        mainStream = useMain;
-        activeUri = uri; released = false; attempts = 0; stalledRecoveries = 0;
+        fallbackActive = sameRequest && fallbackActive;
+        mainStream = useMain && !fallbackActive;
+        requestedUri = uri; fallbackUri = fallback;
+        activeUri = fallbackActive ? fallback : uri; released = false; attempts = 0; stalledRecoveries = 0;
         queueStart();
     }
+    private String liveStatus() { return fallbackActive || mainSuppressed ? "Grid stream · main unavailable" : "Live"; }
     private void queueStart() {
         if (released) return;
         if (coordinator == null) { startPlayer(); return; }
@@ -187,8 +211,10 @@ public final class CameraTile extends FrameLayout {
         try {
             DefaultTrackSelector tracks = new DefaultTrackSelector(getContext());
             tracks.setParameters(tracks.buildUponParameters().setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, true));
+            MediaCodecSelector codecs = mainStream && fallbackUri != null ? hardwareOnly(MediaCodecSelector.DEFAULT)
+                    : decoderSelector(softwareFloatingH264, MediaCodecSelector.DEFAULT, softwareFirst(MediaCodecSelector.DEFAULT));
             DefaultRenderersFactory renderers = new DefaultRenderersFactory(getContext()).setEnableDecoderFallback(true)
-                    .setMediaCodecSelector(decoderSelector(softwareFloatingH264, MediaCodecSelector.DEFAULT, softwareFirst(MediaCodecSelector.DEFAULT)));
+                    .setMediaCodecSelector(codecs);
             DefaultAllocator attemptAllocator = new DefaultAllocator(true, C.DEFAULT_BUFFER_SEGMENT_SIZE);
             allocator = attemptAllocator;
             player = new ExoPlayer.Builder(getContext(), renderers)
@@ -209,7 +235,7 @@ public final class CameraTile extends FrameLayout {
                 }
                 @Override public void onRenderedFirstFrame() {
                     if (released || player != attempt) return;
-                    firstFrame = true; attemptProgress.rendered(SystemClock.elapsedRealtime()); showStatus("Live");
+                    firstFrame = true; attemptProgress.rendered(SystemClock.elapsedRealtime()); showStatus(liveStatus());
                     finishStartup();
                     Format format = attempt.getVideoFormat();
                     Log.i("FieldviewPlayer", diagnosticPrefix() + "event=first_frame startup_ms=" + (SystemClock.elapsedRealtime() - attemptStartedAt)
@@ -217,7 +243,7 @@ public final class CameraTile extends FrameLayout {
                 }
                 @Override public void onPlaybackStateChanged(int state) {
                     if (released || player != attempt) return;
-                    if (state == Player.STATE_READY && firstFrame) showStatus("Live");
+                    if (state == Player.STATE_READY && firstFrame) showStatus(liveStatus());
                     else if (state == Player.STATE_BUFFERING) { showStatus("Buffering…"); armStallTimeout(); }
                     else if (state == Player.STATE_ENDED) scheduleRetry("Camera stream ended");
                 }
@@ -243,7 +269,7 @@ public final class CameraTile extends FrameLayout {
                 if (released || gridSession != attempt) return;
                 long now = SystemClock.elapsedRealtime(); attemptProgress.frame(now);
                 if (!firstFrame) {
-                    firstFrame = true; attemptProgress.rendered(now); finishStartup(); showStatus("Live");
+                    firstFrame = true; attemptProgress.rendered(now); finishStartup(); showStatus(liveStatus());
                     GridVideoSession.Stats stats = attempt.stats();
                     Log.i("FieldviewPlayer", diagnosticPrefix() + "event=first_frame startup_ms=" + (now - attemptStartedAt)
                             + " mime=video/native size=" + stats.width + "x" + stats.height);
@@ -317,6 +343,16 @@ public final class CameraTile extends FrameLayout {
     private void scheduleRetry(String reason) {
         if (released || retry != null) return;
         clearStallTimeout();
+        if (mainStream && fallbackUri != null) {
+            Log.i("FieldviewPlayer", diagnosticPrefix() + "event=fallback code=MAIN_STREAM_UNAVAILABLE reason=" + reason);
+            releasePlayer();
+            activeUri = fallbackUri; fallbackActive = true; mainStream = false; attempts = 0; stalledRecoveries = 0;
+            showStatus("Main unavailable · switching to grid stream…");
+            retry = () -> { retry = null; queueStart(); };
+            handler.postDelayed(retry, 250);
+            if (mainUnavailable != null) mainUnavailable.run();
+            return;
+        }
         long delay = Math.min(30_000, 2_000L << Math.min(attempts++, 4));
         if (reason.startsWith("Video decoder")) delay = Math.max(10_000, delay);
         delay += java.util.concurrent.ThreadLocalRandom.current().nextLong(501);
@@ -359,6 +395,6 @@ public final class CameraTile extends FrameLayout {
         } finally { if (previousStartup != null) previousStartup.finish(); }
     }
 
-    public void release() { released = true; disposePlayer(); activeUri = null; }
+    public void release() { released = true; disposePlayer(); activeUri = null; requestedUri = null; fallbackUri = null; fallbackActive = false; mainUnavailable = null; }
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
 }

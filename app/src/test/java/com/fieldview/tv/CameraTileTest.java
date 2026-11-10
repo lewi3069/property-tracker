@@ -29,6 +29,38 @@ import static org.robolectric.Shadows.shadowOf;
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = 28)
 public class CameraTileTest {
+    @Test public void failedCenterFallsBackOnceAndRerenderDoesNotRetryMain() throws Exception {
+        ActivityController<Activity> controller = Robolectric.buildActivity(Activity.class).setup();
+        CameraTile tile = new CameraTile(controller.get(), "Center", false, true, false);
+        try {
+            String main = "rtsp://viewer:example-secret@example.invalid/main", sub = "rtsp://example.invalid/sub";
+            tile.playMainOrGrid(main, sub); // Still queued: no network needed.
+            Method retry = CameraTile.class.getDeclaredMethod("scheduleRetry", String.class); retry.setAccessible(true);
+            retry.invoke(tile, "Video decoder unavailable");
+            assertEquals(sub, field("activeUri").get(tile)); assertFalse(field("mainStream").getBoolean(tile));
+            Object queued = field("retry").get(tile);
+            tile.playMainOrGrid(main, sub); assertSame(queued, field("retry").get(tile));
+            Method dispose = CameraTile.class.getDeclaredMethod("disposePlayer"); dispose.setAccessible(true); dispose.invoke(tile);
+            tile.playMainOrGrid(main, sub); // Also latched if all substream retries have stopped.
+            assertEquals(sub, field("activeUri").get(tile)); assertFalse(field("mainStream").getBoolean(tile));
+            tile.playMainOrGrid("rtsp://example.invalid/other-main", sub);
+            assertTrue(field("mainStream").getBoolean(tile));
+            String logs = org.robolectric.shadows.ShadowLog.getLogsForTag("FieldviewPlayer").toString();
+            assertFalse(logs.contains("example-secret")); assertFalse(logs.contains("rtsp://"));
+            tile.release(); assertNull(field("requestedUri").get(tile)); assertNull(field("fallbackUri").get(tile));
+            tile.playMainOrGrid(main, sub); assertTrue(field("mainStream").getBoolean(tile));
+        } finally { tile.release(); controller.pause().stop().destroy(); }
+    }
+    @Test public void denseCenterHardwarePolicyExcludesSoftwareWithoutMutatingCodecCache() throws Exception {
+        MediaCodecInfo hw = MediaCodecInfo.newInstance("OMX.vendor.hevc", MimeTypes.VIDEO_H265, MimeTypes.VIDEO_H265, null, true, false, true, false, false);
+        MediaCodecInfo sw = MediaCodecInfo.newInstance("OMX.google.hevc.decoder", MimeTypes.VIDEO_H265, MimeTypes.VIDEO_H265, null, false, true, false, false, false);
+        List<MediaCodecInfo> original = Collections.unmodifiableList(Arrays.asList(sw, hw));
+        List<MediaCodecInfo> selected = CameraTile.hardwareOnly((mime, secure, tunneling) -> original)
+                .getDecoderInfos(MimeTypes.VIDEO_H265, false, false);
+        assertEquals(Collections.singletonList(hw), selected); assertEquals(Arrays.asList(sw, hw), original);
+        assertTrue(CameraTile.hardwareOnly((mime, secure, tunneling) -> Collections.singletonList(sw))
+                .getDecoderInfos(MimeTypes.VIDEO_H264, false, false).isEmpty());
+    }
     @Test public void nativeHealthDistinguishesSizeChangesFromPositionOnlyChanges() throws Exception {
         ActivityController<Activity> controller = Robolectric.buildActivity(Activity.class).setup();
         CameraTile tile = new CameraTile(controller.get(), "Native", false, true, true);

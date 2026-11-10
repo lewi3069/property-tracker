@@ -8,6 +8,16 @@ import java.util.List;
 import static org.junit.Assert.*;
 
 public class CameraCatalogTest {
+    @Test public void highResolutionCenterIsOptInAndPreservesCatalogAndBrokerIdentity() throws Exception {
+        AppConfig config = new AppConfig(); config.cameras.add(camera("barn"));
+        org.json.JSONObject old = config.toJson(); old.remove("highResolutionCenter");
+        assertFalse(AppConfig.fromJson(old).highResolutionCenter);
+        config.highResolutionCenter = true;
+        AppConfig restored = AppConfig.fromJson(config.toJson());
+        assertTrue(restored.highResolutionCenter);
+        assertEquals(config.clientId, restored.clientId);
+        assertEquals(config.cameras.get(0).toJson().toString(), restored.cameras.get(0).toJson().toString());
+    }
     @Test public void gridExperimentDefaultsOffForOldSettingsAndRoundTripsWithoutChangingCameras() throws Exception {
         AppConfig config = new AppConfig(); config.cameras.add(camera("barn"));
         org.json.JSONObject old = config.toJson(); old.remove("textureGrid");

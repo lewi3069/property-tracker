@@ -41,7 +41,9 @@ public class FullscreenLayoutTest {
     public static class NoVideo extends org.robolectric.shadows.ShadowViewGroup {
         @RealObject CameraTile tile;
         static int starts;
+        static java.util.function.Consumer<CameraTile> beforeStart;
         @Implementation protected void startPlayer() throws Exception {
+            if (beforeStart != null) beforeStart.accept(tile);
             starts++;
             ExoPlayer player = (ExoPlayer) Proxy.newProxyInstance(ExoPlayer.class.getClassLoader(),
                     new Class<?>[]{ExoPlayer.class}, (proxy, method, args) -> null);
@@ -292,5 +294,51 @@ public class FullscreenLayoutTest {
             ShadowAlertDialog.getLatestAlertDialog().getButton(AlertDialog.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle();
             assertFullLayout(activity,4);
         } finally {controller.pause().stop().destroy();}
+    }
+    @Test public void highResolutionCenterHandoverReleasesOldMainAndReusesUnaffectedPerimeter() throws Exception {
+        ActivityController<MainActivity> controller = open(13, "AFTKM");
+        try {
+            MainActivity activity = controller.get(); AppConfig config = (AppConfig) field(MainActivity.class, "config").get(activity);
+            for (int i = 9; i < 13; i++) {
+                AppConfig.Camera camera = new AppConfig.Camera(); camera.id = "camera-" + i;
+                camera.name = "Camera " + i; camera.host = "192.0.2.10"; config.cameras.add(camera);
+            }
+            config.textureGrid = true; config.denseGrid = true; config.useMainStream = true; config.highResolutionCenter = true;
+            config.spotlightCamera = "camera-1";
+            field(MainActivity.class, "playbackLimits").set(activity, PlaybackLimits.forDevice("AFTKM", false, true));
+            invoke(activity, "resetSelector"); field(MainActivity.class, "setupOnly").set(activity, false); invoke(activity, "render");
+            CameraTile original = tiles(activity).get("camera-1"), neighbour = tiles(activity).get("camera-5");
+            assertFalse(original.usesNativeGrid()); assertFalse(original.usesTexture()); assertTrue(neighbour.usesNativeGrid());
+            assertTrue(field(CameraTile.class, "mainStream").getBoolean(original));
+            NoVideo.beforeStart = tile -> {
+                try { assertNull("Retired main must be released before replacement", field(CameraTile.class, "player").get(original)); }
+                catch (Exception e) { throw new AssertionError(e); }
+            };
+            selector(activity).activity("camera-2", System.currentTimeMillis(), System.currentTimeMillis() + 30000);
+            invoke(activity, "render");
+            assertSame(neighbour, tiles(activity).get("camera-5"));
+            assertTrue(tiles(activity).get("camera-1").usesNativeGrid());
+            CameraTile active = tiles(activity).get("camera-2"); assertFalse(active.usesNativeGrid());
+            assertTrue(field(CameraTile.class, "mainStream").getBoolean(active));
+            NoVideo.beforeStart = null; selector(activity).clearActivity("camera-2"); invoke(activity, "render");
+            assertNull(field(CameraTile.class, "player").get(active));
+            CameraTile returned = tiles(activity).get("camera-1"); assertFalse(returned.usesNativeGrid());
+            int starts = NoVideo.starts; selector(activity).setMode(ViewSelector.GRID, null); invoke(activity, "render");
+            assertSame(returned, tiles(activity).get("camera-1")); assertEquals(starts, NoVideo.starts);
+            assertSame(neighbour, tiles(activity).get("camera-5"));
+            ((Runnable) field(CameraTile.class, "mainUnavailable").get(returned)).run(); shadowOf(Looper.getMainLooper()).idle();
+            CameraTile fallback = tiles(activity).get("camera-1"); assertTrue(fallback.usesNativeGrid());
+            assertTrue(field(CameraTile.class, "mainSuppressed").getBoolean(fallback));
+            selector(activity).setMode(ViewSelector.AUTO, null);
+            selector(activity).activity("camera-2", System.currentTimeMillis(), System.currentTimeMillis() + 30000); invoke(activity, "render");
+            selector(activity).clearActivity("camera-2"); selector(activity).setMode(ViewSelector.AUTO, null); invoke(activity, "render");
+            assertTrue("Motion return must respect the failed-main cooldown", tiles(activity).get("camera-1").usesNativeGrid());
+            invoke(activity, "showLayout"); AlertDialog dialog = ShadowAlertDialog.getLatestAlertDialog();
+            CheckBox option = dialog.findViewById(R.id.layout_high_resolution_center); assertTrue(option.isChecked());
+            option.setChecked(false); dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick(); shadowOf(Looper.getMainLooper()).idle();
+            AppConfig saved = (AppConfig) field(MainActivity.class, "config").get(activity);
+            assertFalse(saved.highResolutionCenter); assertEquals(config.clientId, saved.clientId); assertEquals(13, saved.cameras.size());
+            for (CameraTile tile : tiles(activity).values()) assertTrue(tile.usesNativeGrid());
+        } finally { NoVideo.beforeStart = null; controller.pause().stop().destroy(); }
     }
 }
