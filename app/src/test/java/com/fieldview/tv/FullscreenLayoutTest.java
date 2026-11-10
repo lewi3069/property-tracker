@@ -341,4 +341,47 @@ public class FullscreenLayoutTest {
             for (CameraTile tile : tiles(activity).values()) assertTrue(tile.usesNativeGrid());
         } finally { NoVideo.beforeStart = null; controller.pause().stop().destroy(); }
     }
+    @Test public void adaptiveMotionReleasesHiddenPlayersAndReturnsToTheThirteenCameraOverview() throws Exception {
+        ActivityController<MainActivity> controller = open(13, "AFTKM");
+        try {
+            MainActivity activity = controller.get(); AppConfig config = (AppConfig) field(MainActivity.class, "config").get(activity);
+            for (int i = 9; i < 13; i++) {
+                AppConfig.Camera camera = new AppConfig.Camera(); camera.id = "camera-" + i;
+                camera.name = "Camera " + i; camera.host = "192.0.2.10"; config.cameras.add(camera);
+            }
+            config.textureGrid = true; config.denseGrid = true; config.useMainStream = true;
+            config.motionLayoutEight = true; config.spotlightCamera = "camera-1";
+            field(MainActivity.class, "playbackLimits").set(activity, PlaybackLimits.forDevice("AFTKM", false, true));
+            invoke(activity, "resetSelector"); field(MainActivity.class, "setupOnly").set(activity, false);
+            field(MainActivity.class, "layoutFullscreen").set(activity, true); invoke(activity, "render"); assertFullLayout(activity, 13);
+            Map<String, CameraTile> original = new java.util.HashMap<>(tiles(activity));
+            NoVideo.beforeStart = tile -> {
+                try {
+                    for (String id : new String[]{"camera-7", "camera-8", "camera-9", "camera-10", "camera-11", "camera-12"})
+                        assertNull("Hidden/replaced players must retire before main starts", field(CameraTile.class, "player").get(original.get(id)));
+                } catch (Exception e) { throw new AssertionError(e); }
+            };
+            selector(activity).activity("camera-12", System.currentTimeMillis(), System.currentTimeMillis() + 30000); invoke(activity, "render");
+            NoVideo.beforeStart = null; assertFullLayout(activity, 8);
+            CameraTile main = tiles(activity).get("camera-12"); assertFalse(main.usesNativeGrid());
+            assertTrue(field(CameraTile.class, "mainStream").getBoolean(main)); assertEquals(1440, main.getWidth()); assertEquals(810, main.getHeight());
+            long area = 0; java.util.List<android.graphics.Rect> bounds = new java.util.ArrayList<>();
+            for (CameraTile tile : tiles(activity).values()) {
+                android.graphics.Rect r = new android.graphics.Rect(tile.getLeft(), tile.getTop(), tile.getRight(), tile.getBottom());
+                for (android.graphics.Rect previous : bounds) assertFalse(android.graphics.Rect.intersects(previous, r));
+                bounds.add(r); area += (long) r.width() * r.height();
+                if (tile != main) { assertEquals(480, tile.getWidth()); assertEquals(270, tile.getHeight()); assertTrue(tile.usesNativeGrid()); }
+            }
+            assertEquals(1920L * 1080, area); assertSame(original.get("camera-5"), tiles(activity).get("camera-5"));
+            ((Runnable) field(CameraTile.class, "mainUnavailable").get(main)).run(); shadowOf(Looper.getMainLooper()).idle();
+            assertFullLayout(activity, 8); for (CameraTile tile : tiles(activity).values()) assertTrue(tile.usesNativeGrid());
+            selector(activity).clearActivity("camera-12"); invoke(activity, "render"); assertFullLayout(activity, 13);
+            assertEquals("camera-1", selector(activity).snapshot(System.currentTimeMillis()).visible.get(0));
+            assertEquals(13, config.visibleCount); assertFalse(config.highResolutionCenter);
+            invoke(activity, "showLayout"); AlertDialog dialog = ShadowAlertDialog.getLatestAlertDialog();
+            CheckBox option = dialog.findViewById(R.id.layout_motion_eight); assertTrue(option.isChecked());
+            option.setChecked(false); dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick(); shadowOf(Looper.getMainLooper()).idle();
+            assertFalse(((AppConfig) field(MainActivity.class, "config").get(activity)).motionLayoutEight);
+        } finally { NoVideo.beforeStart = null; controller.pause().stop().destroy(); }
+    }
 }

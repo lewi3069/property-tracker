@@ -61,6 +61,13 @@ public final class CameraWall extends ViewGroup {
             }
             return;
         }
+        if (BuildConfig.TV_INTERFACE && count == 8 && featured == 1) {
+            // A 3x3 main tile and seven 1x1 tiles in a 4x4 grid: all retain 16:9 on a TV.
+            add(0, 0, .75, .75, width, height);
+            for (int row = 0; row < 4; row++) add(.75, row / 4.0, 1, (row + 1) / 4.0, width, height);
+            for (int column = 0; column < 3; column++) add(column / 4.0, .75, (column + 1) / 4.0, 1, width, height);
+            return;
+        }
         if (featured == 1 && count <= 4) {
             add(0, 0, .72, 1, width, height);
             for (int i = 0; i < count - 1; i++) add(.72, (double)i / (count - 1), 1, (double)(i + 1) / (count - 1), width, height);

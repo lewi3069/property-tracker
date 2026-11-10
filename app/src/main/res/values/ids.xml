@@ -11,6 +11,7 @@
     <item name="camera_wall" type="id" />
     <item name="layout_fullscreen" type="id" />
     <item name="layout_high_resolution_center" type="id" />
+    <item name="layout_motion_eight" type="id" />
     <item name="floating_camera" type="id" />
     <item name="phone_more" type="id" />
     <item name="phone_controls" type="id" />

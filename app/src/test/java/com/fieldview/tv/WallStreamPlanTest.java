@@ -12,6 +12,31 @@ import static org.junit.Assert.*;
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = 28)
 public class WallStreamPlanTest {
+    @Test public void adaptiveMotionUsesOneMainAndSevenSubstreamsThenThirteenSubs() {
+        List<AppConfig.Camera> cameras = cameras(); List<String> ids = new ArrayList<>();
+        for (AppConfig.Camera camera : cameras) ids.add(camera.id);
+        ViewSelector selector = new ViewSelector(ids, Collections.emptyMap(), 13, 13); selector.setMotionLayoutEight(true);
+        selector.activity("camera-12", 0, 10000);
+        ViewSelector.Selection active = selector.snapshot(0);
+        WallStreamPlan plan = new WallStreamPlan(active, true, true, false, Collections.emptySet(), true);
+        int main = 0, nativeCount = 0;
+        for (String id : active.visible) {
+            AppConfig.Camera camera = cameras.get(ids.indexOf(id));
+            if (plan.main(camera)) { main++; assertEquals("camera-12", id); }
+            if (plan.nativeGrid(camera)) nativeCount++;
+        }
+        assertEquals(1, main); assertEquals(7, nativeCount);
+        assertFalse(new WallStreamPlan(active, true, false, false, Collections.emptySet(), true).main(cameras.get(12)));
+        assertFalse(new WallStreamPlan(active, true, true, false, Collections.singleton("camera-12"), true).main(cameras.get(12)));
+        selector.clearActivity("camera-12"); ViewSelector.Selection overview = selector.snapshot(1);
+        WallStreamPlan restored = new WallStreamPlan(overview, true, true, false, Collections.emptySet(), true);
+        assertEquals(13, overview.visible.size());
+        for (AppConfig.Camera camera : cameras) { assertFalse(restored.main(camera)); assertTrue(restored.nativeGrid(camera)); }
+        selector.setCapacity(8); selector.activity("camera-12", 2, 10000);
+        ViewSelector.Selection ordinaryEight = selector.snapshot(2);
+        assertFalse(ordinaryEight.motionLayoutEight);
+        assertFalse(new WallStreamPlan(ordinaryEight, true, true, false, Collections.emptySet(), true).main(cameras.get(12)));
+    }
     private List<AppConfig.Camera> cameras() {
         List<AppConfig.Camera> result = new ArrayList<>();
         for (int i = 0; i < 13; i++) {

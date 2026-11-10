@@ -297,6 +297,8 @@ public final class MainActivity extends Activity {
         if (selector == null || selector.maxCapacity() != playbackLimits.maxVisible) selector = new ViewSelector(ids, zones, config.visibleCount, playbackLimits.maxVisible);
         else { selector.reconfigure(ids, zones); if (layoutOverrideUntil == 0) selector.setCapacity(config.visibleCount); }
         selector.setDefaultCamera(config.spotlightCamera);
+        selector.setMotionLayoutEight(config.motionLayoutEight && BuildConfig.TV_INTERFACE && Build.VERSION.SDK_INT >= 26
+                && config.denseGrid && config.textureGrid && playbackLimits.maxVisible == 13);
         router = new CommandRouter(selector, (count, until) -> { layoutOverrideUntil = until; selector.setCapacity(count); });
         signature = "";
     }
@@ -337,12 +339,14 @@ public final class MainActivity extends Activity {
         boolean nativeGrid = BuildConfig.TV_INTERFACE && Build.VERSION.SDK_INT >= 26
                 && config.denseGrid && textureGrid && playbackLimits.maxVisible == 13;
         java.util.Set<String> unavailable = new java.util.HashSet<>();
-        if (nativeGrid && config.highResolutionCenter) for (String id : selection.visible)
+        if (nativeGrid && (config.highResolutionCenter || config.motionLayoutEight)) for (String id : selection.visible)
             if (centerStreamBackoff.blocked(camera(id), android.os.SystemClock.elapsedRealtime())) unavailable.add(id);
-        WallStreamPlan streams = new WallStreamPlan(selection, nativeGrid, config.useMainStream, config.highResolutionCenter, unavailable);
-        String nextSignature = selection.reason + selection.visible + selection.featured + config.useMainStream + fullscreen + textureGrid + config.denseGrid + config.highResolutionCenter;
+        WallStreamPlan streams = new WallStreamPlan(selection, nativeGrid, config.useMainStream, config.highResolutionCenter, unavailable, config.motionLayoutEight);
+        String nextSignature = selection.reason + selection.visible + selection.featured + config.useMainStream + fullscreen + textureGrid + config.denseGrid + config.highResolutionCenter + config.motionLayoutEight + selection.motionLayoutEight;
         if (signature.equals(nextSignature)) return;
         signature = nextSignature;
+        android.util.Log.i("FieldviewLayout", "mode=" + selection.mode + " visible=" + selection.visible.size()
+                + " reason=" + selection.reason + " motion_eight=" + selection.motionLayoutEight);
         String previouslyFocused = null;
         for (Map.Entry<String, CameraTile> entry : tiles.entrySet()) if (entry.getValue().hasFocus()) previouslyFocused = entry.getKey();
         Iterator<Map.Entry<String, CameraTile>> iterator = tiles.entrySet().iterator();
@@ -446,6 +450,10 @@ public final class MainActivity extends Activity {
         dense.setChecked(config.denseGrid); fields.addView(dense);
         dense.setEnabled(BuildConfig.TV_INTERFACE && Build.VERSION.SDK_INT >= 26 && limitsFor(true, true).maxVisible == 13);
         fields.addView(label("Requires grid compatibility above. Uses grid streams and the native software video engine. More feeds use more CPU and memory and may reduce frame rate. Start with fewer cameras before trying 13.", 13));
+        CheckBox motionEight = new CheckBox(this); motionEight.setText("Auto: show 8 cameras during motion, then return to 13");
+        motionEight.setId(R.id.layout_motion_eight); motionEight.setChecked(config.motionLayoutEight);
+        motionEight.setEnabled(dense.isEnabled()); fields.addView(motionEight);
+        fields.addView(label("For a 13-camera layout: motion opens one large active view plus seven smaller cameras. With main streams enabled above, only the large view uses its main stream. All 13 return when every motion event clears or expires. Grid and pinned views keep their chosen layout.", 13));
         CheckBox highResolution = new CheckBox(this); highResolution.setText("Experimental high-resolution center (13 cameras)");
         highResolution.setId(R.id.layout_high_resolution_center);
         highResolution.setChecked(config.highResolutionCenter); highResolution.setEnabled(dense.isEnabled()); fields.addView(highResolution);
@@ -483,13 +491,15 @@ public final class MainActivity extends Activity {
         AlertDialog.Builder layoutDialog = new AlertDialog.Builder(this).setTitle("Screen layout").setView(scroll).setNegativeButton("Cancel", null)
                 .setPositiveButton("Save", (dialog, which) -> {
                     AppConfig next = copyConfig();
-                    boolean resetMainFailures = config.highResolutionCenter != highResolution.isChecked() || config.useMainStream != quality.isChecked();
+                    boolean resetMainFailures = config.highResolutionCenter != highResolution.isChecked() || config.useMainStream != quality.isChecked()
+                            || config.motionLayoutEight != motionEight.isChecked();
                     next.visibleCount = countOptions[0][count.getSelectedItemPosition()];
                     next.useMainStream = quality.isChecked();
                     next.softwareFloatingH264 = softwareFloat.isChecked();
                     next.textureGrid = texture.isChecked();
                     next.denseGrid = dense.isChecked() && dense.isEnabled() && texture.isChecked();
                     next.highResolutionCenter = highResolution.isChecked();
+                    next.motionLayoutEight = motionEight.isChecked();
                     next.spotlightCamera = spotlight.getSelectedItemPosition() == 0 ? "" : defaults.get(spotlight.getSelectedItemPosition() - 1).id;
                     if (save(next)) {
                         if (resetMainFailures) centerStreamBackoff.clear();

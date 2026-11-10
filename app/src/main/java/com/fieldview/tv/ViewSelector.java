@@ -20,6 +20,7 @@ public final class ViewSelector {
     private final int maxCapacity;
     private String mode = AUTO, pinned;
     private String defaultCamera;
+    private boolean motionLayoutEight;
     private Selection current;
     private long changedAt;
 
@@ -44,6 +45,7 @@ public final class ViewSelector {
     }
     public int maxCapacity() { return maxCapacity; }
     public void setDefaultCamera(String id) { defaultCamera = id; }
+    public void setMotionLayoutEight(boolean value) { motionLayoutEight = value; }
 
     /** Keep activity/location and a valid manual selection when the catalog is edited. */
     public void reconfigure(List<String> ids, Map<String, List<String>> mapping) {
@@ -128,11 +130,15 @@ public final class ViewSelector {
                 && priority <= current.priority && now - changedAt < 8_000;
         if (!same && !hold) { current = new Selection(reason, priority, featured, Collections.emptyList(), mode); changedAt = now; }
         LinkedHashSet<String> ordered = new LinkedHashSet<>(current.featured);
+        boolean motionEight = motionLayoutEight && capacity == 13 && cameras.size() >= 13
+                && AUTO.equals(mode) && "activity".equals(current.reason);
+        if (motionEight) ordered.addAll(motionIds);
         if (!PIN.equals(mode) && capacity == 13 && cameras.contains(defaultCamera)) ordered.add(defaultCamera);
         if (!PIN.equals(mode)) ordered.addAll(cameras);
         List<String> visible = new ArrayList<>(ordered);
-        if (visible.size() > capacity) visible = new ArrayList<>(visible.subList(0, capacity));
-        return new Selection(current.reason, current.priority, current.featured, visible, mode);
+        int visibleLimit = motionEight ? 8 : capacity;
+        if (visible.size() > visibleLimit) visible = new ArrayList<>(visible.subList(0, visibleLimit));
+        return new Selection(current.reason, current.priority, current.featured, visible, mode, motionEight);
     }
 
     private static final class Motion {
@@ -147,9 +153,14 @@ public final class ViewSelector {
     public static final class Selection {
         public final String reason, mode;
         public final int priority;
+        public final boolean motionLayoutEight;
         public final List<String> featured, visible;
         Selection(String reason, int priority, List<String> featured, List<String> visible, String mode) {
+            this(reason, priority, featured, visible, mode, false);
+        }
+        Selection(String reason, int priority, List<String> featured, List<String> visible, String mode, boolean motionLayoutEight) {
             this.reason = reason; this.priority = priority; this.mode = mode;
+            this.motionLayoutEight = motionLayoutEight;
             this.featured = Collections.unmodifiableList(new ArrayList<>(featured));
             this.visible = Collections.unmodifiableList(new ArrayList<>(visible));
         }

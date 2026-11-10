@@ -8,6 +8,14 @@ import java.util.List;
 import static org.junit.Assert.*;
 
 public class CameraCatalogTest {
+    @Test public void motionLayoutDefaultsOffAndRoundTripsWithoutChangingTheSavedCountOrIdentity() throws Exception {
+        AppConfig config = new AppConfig(); config.cameras.add(camera("barn")); config.visibleCount = 13;
+        org.json.JSONObject old = config.toJson(); old.remove("motionLayoutEight");
+        assertFalse(AppConfig.fromJson(old).motionLayoutEight);
+        config.motionLayoutEight = true; AppConfig restored = AppConfig.fromJson(config.toJson());
+        assertTrue(restored.motionLayoutEight); assertEquals(13, restored.visibleCount);
+        assertEquals(config.clientId, restored.clientId); assertEquals(config.cameras.get(0).toJson().toString(), restored.cameras.get(0).toJson().toString());
+    }
     @Test public void highResolutionCenterIsOptInAndPreservesCatalogAndBrokerIdentity() throws Exception {
         AppConfig config = new AppConfig(); config.cameras.add(camera("barn"));
         org.json.JSONObject old = config.toJson(); old.remove("highResolutionCenter");
