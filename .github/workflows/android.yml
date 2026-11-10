@@ -66,10 +66,10 @@ jobs:
           :mobile:testDebugUnitTest :mobile:assembleDebug :mobile:lintDebug
       - name: Verify package identities, SDK levels and native libraries
         run: python3 scripts/verify-debug-apks.py --aapt "$ANDROID_HOME/build-tools/36.0.0/aapt"
-        - name: Build opt-in native surface trial
-          run: gradle --no-daemon --console=plain :app:assembleDebug -PpropertyTrackerNativeSurfaceTrial=true
-        - name: Verify trial identity and unchanged phone packaging
-          run: python3 scripts/verify-debug-apks.py --aapt "$ANDROID_HOME/build-tools/36.0.0/aapt" --native-surface-trial
+      - name: Build opt-in native surface trial
+        run: gradle --no-daemon --console=plain :app:assembleDebug -PpropertyTrackerNativeSurfaceTrial=true
+      - name: Verify trial identity and unchanged phone packaging
+        run: python3 scripts/verify-debug-apks.py --aapt "$ANDROID_HOME/build-tools/36.0.0/aapt" --native-surface-trial
       - name: Preserve test and lint reports
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
