@@ -18,6 +18,7 @@ import androidx.media3.common.MediaItem;
 import androidx.media3.common.MimeTypes;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
+import androidx.media3.common.Tracks;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
@@ -55,6 +56,7 @@ public final class CameraTile extends FrameLayout {
     private String requestedUri, fallbackUri;
     private boolean fallbackActive;
     private boolean mainSuppressed;
+    private boolean mainFormatRejected, mainSuppressedFormatUnsupported;
     private Runnable mainUnavailable;
     private Runnable retry;
     private Runnable stalled;
@@ -105,7 +107,20 @@ public final class CameraTile extends FrameLayout {
     boolean usesTexture() { return texture; }
     boolean usesNativeGrid() { return nativeGrid; }
     void setMainUnavailableListener(Runnable value) { mainUnavailable = value; }
-    void setMainSuppressed(boolean value) { mainSuppressed = value; if (firstFrame) showStatus(liveStatus()); }
+    boolean mainFormatRejected() { return mainFormatRejected; }
+    void setMainSuppressed(boolean value) { setMainSuppressed(value, false); }
+    void setMainSuppressed(boolean value, boolean formatUnsupported) {
+        mainSuppressed = value; mainSuppressedFormatUnsupported = value && formatUnsupported;
+        if (firstFrame) showStatus(liveStatus());
+    }
+    static boolean unsupportedVideoTracks(Tracks tracks) {
+        return tracks.containsType(C.TRACK_TYPE_VIDEO) && !tracks.isTypeSupported(C.TRACK_TYPE_VIDEO)
+                && !tracks.isTypeSelected(C.TRACK_TYPE_VIDEO);
+    }
+    static void configureVideoTracks(DefaultTrackSelector tracks, boolean hardwareMain) {
+        tracks.setParameters(tracks.buildUponParameters().setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, true)
+                .setExceedRendererCapabilitiesIfNecessary(!hardwareMain));
+    }
     @Override protected void onSizeChanged(int width, int height, int oldWidth, int oldHeight) {
         super.onSizeChanged(width, height, oldWidth, oldHeight);
         if (nativeGrid && width > 0 && height > 0 && (width != oldWidth || height != oldHeight)) nativeTileResizes++;
@@ -168,13 +183,18 @@ public final class CameraTile extends FrameLayout {
         if (sameRequest
                 && (player != null || gridSession != null || retry != null || startup != null)) return;
         disposePlayer();
+        if (!sameRequest) mainFormatRejected = false;
         fallbackActive = sameRequest && fallbackActive;
         mainStream = useMain && !fallbackActive;
         requestedUri = uri; fallbackUri = fallback;
         activeUri = fallbackActive ? fallback : uri; released = false; attempts = 0; stalledRecoveries = 0;
         queueStart();
     }
-    private String liveStatus() { return fallbackActive || mainSuppressed ? "Grid stream · main unavailable" : "Live"; }
+    private String liveStatus() {
+        if (!fallbackActive && !mainSuppressed) return "Live";
+        return mainFormatRejected || mainSuppressedFormatUnsupported
+                ? "Main format unsupported on this TV · grid stream" : "Grid stream · main unavailable";
+    }
     private void queueStart() {
         if (released) return;
         if (coordinator == null) { startPlayer(); return; }
@@ -210,7 +230,7 @@ public final class CameraTile extends FrameLayout {
         }
         try {
             DefaultTrackSelector tracks = new DefaultTrackSelector(getContext());
-            tracks.setParameters(tracks.buildUponParameters().setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, true));
+            configureVideoTracks(tracks, mainStream && fallbackUri != null);
             MediaCodecSelector codecs = mainStream && fallbackUri != null ? hardwareOnly(MediaCodecSelector.DEFAULT)
                     : decoderSelector(softwareFloatingH264, MediaCodecSelector.DEFAULT, softwareFirst(MediaCodecSelector.DEFAULT));
             DefaultRenderersFactory renderers = new DefaultRenderersFactory(getContext()).setEnableDecoderFallback(true)
@@ -227,6 +247,17 @@ public final class CameraTile extends FrameLayout {
                     attemptProgress.frame(SystemClock.elapsedRealtime()));
             player.setVolume(0f); surface.setPlayer(player);
             player.addListener(new Player.Listener() {
+                @Override public void onTracksChanged(Tracks available) {
+                    if (released || player != attempt || !mainStream || fallbackUri == null || !unsupportedVideoTracks(available)) return;
+                    mainFormatRejected = true;
+                    for (Tracks.Group group : available.getGroups()) if (group.getType() == C.TRACK_TYPE_VIDEO && group.length > 0) {
+                        Format format = group.getTrackFormat(0);
+                        Log.w("FieldviewPlayer", diagnosticPrefix() + "event=main_unsupported mime=" + format.sampleMimeType
+                                + " size=" + format.width + "x" + format.height);
+                        break;
+                    }
+                    scheduleRetry("Main format unsupported on this TV");
+                }
                 @Override public void onPlayerError(PlaybackException error) {
                     if (released || player != attempt) return;
                     String reason = PlaybackFailure.describe(error);
@@ -395,6 +426,6 @@ public final class CameraTile extends FrameLayout {
         } finally { if (previousStartup != null) previousStartup.finish(); }
     }
 
-    public void release() { released = true; disposePlayer(); activeUri = null; requestedUri = null; fallbackUri = null; fallbackActive = false; mainUnavailable = null; }
+    public void release() { released = true; disposePlayer(); activeUri = null; requestedUri = null; fallbackUri = null; fallbackActive = false; mainUnavailable = null; mainFormatRejected = false; mainSuppressed = false; mainSuppressedFormatUnsupported = false; }
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
 }

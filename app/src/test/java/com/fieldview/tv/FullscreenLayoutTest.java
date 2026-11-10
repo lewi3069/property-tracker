@@ -373,8 +373,10 @@ public class FullscreenLayoutTest {
                 if (tile != main) { assertEquals(480, tile.getWidth()); assertEquals(270, tile.getHeight()); assertTrue(tile.usesNativeGrid()); }
             }
             assertEquals(1920L * 1080, area); assertSame(original.get("camera-5"), tiles(activity).get("camera-5"));
+            field(CameraTile.class, "mainFormatRejected").setBoolean(main, true);
             ((Runnable) field(CameraTile.class, "mainUnavailable").get(main)).run(); shadowOf(Looper.getMainLooper()).idle();
             assertFullLayout(activity, 8); for (CameraTile tile : tiles(activity).values()) assertTrue(tile.usesNativeGrid());
+            assertTrue(field(CameraTile.class, "mainSuppressedFormatUnsupported").getBoolean(tiles(activity).get("camera-12")));
             selector(activity).clearActivity("camera-12"); invoke(activity, "render"); assertFullLayout(activity, 13);
             assertEquals("camera-1", selector(activity).snapshot(System.currentTimeMillis()).visible.get(0));
             assertEquals(13, config.visibleCount); assertFalse(config.highResolutionCenter);

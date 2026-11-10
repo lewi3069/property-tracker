@@ -339,8 +339,13 @@ public final class MainActivity extends Activity {
         boolean nativeGrid = BuildConfig.TV_INTERFACE && Build.VERSION.SDK_INT >= 26
                 && config.denseGrid && textureGrid && playbackLimits.maxVisible == 13;
         java.util.Set<String> unavailable = new java.util.HashSet<>();
-        if (nativeGrid && (config.highResolutionCenter || config.motionLayoutEight)) for (String id : selection.visible)
-            if (centerStreamBackoff.blocked(camera(id), android.os.SystemClock.elapsedRealtime())) unavailable.add(id);
+        java.util.Set<String> unsupported = new java.util.HashSet<>();
+        if (nativeGrid && (config.highResolutionCenter || config.motionLayoutEight)) for (String id : selection.visible) {
+            long now = android.os.SystemClock.elapsedRealtime(); AppConfig.Camera camera = camera(id);
+            if (centerStreamBackoff.blocked(camera, now)) {
+                unavailable.add(id); if (centerStreamBackoff.formatUnsupported(camera, now)) unsupported.add(id);
+            }
+        }
         WallStreamPlan streams = new WallStreamPlan(selection, nativeGrid, config.useMainStream, config.highResolutionCenter, unavailable, config.motionLayoutEight);
         String nextSignature = selection.reason + selection.visible + selection.featured + config.useMainStream + fullscreen + textureGrid + config.denseGrid + config.highResolutionCenter + config.motionLayoutEight + selection.motionLayoutEight;
         if (signature.equals(nextSignature)) return;
@@ -379,9 +384,10 @@ public final class MainActivity extends Activity {
             boolean featured = selection.featured.contains(id);
             tile.setFullscreen(fullscreen, !pinned && selection.visible.size() > 1);
             tile.setFeatured(featured || streams.highResolutionCenter(camera));
-            tile.setMainSuppressed(streams.mainUnavailable(camera));
+            tile.setMainSuppressed(streams.mainUnavailable(camera), unsupported.contains(id));
+            CameraTile requestTile = tile;
             tile.setMainUnavailableListener(streams.highResolutionCenter(camera) ? () -> {
-                centerStreamBackoff.failed(camera, android.os.SystemClock.elapsedRealtime());
+                centerStreamBackoff.failed(camera, android.os.SystemClock.elapsedRealtime(), requestTile.mainFormatRejected());
                 handler.post(() -> { signature = ""; render(); });
             } : null);
             boolean main = streams.main(camera);

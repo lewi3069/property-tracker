@@ -6,6 +6,11 @@ import android.os.SystemClock;
 import android.widget.TextView;
 import androidx.media3.common.Player;
 import androidx.media3.common.MimeTypes;
+import androidx.media3.common.C;
+import androidx.media3.common.Format;
+import androidx.media3.common.TrackGroup;
+import androidx.media3.common.Tracks;
+import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector;
 import androidx.media3.exoplayer.mediacodec.MediaCodecInfo;
@@ -29,6 +34,54 @@ import static org.robolectric.Shadows.shadowOf;
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = 28)
 public class CameraTileTest {
+    private Tracks videoTracks(int width, int height, int support, boolean selected) {
+        Format format = new Format.Builder().setSampleMimeType(MimeTypes.VIDEO_H265).setWidth(width).setHeight(height).build();
+        return new Tracks(Collections.singletonList(new Tracks.Group(new TrackGroup("video", format), false, new int[]{support}, new boolean[]{selected})));
+    }
+    @Test public void enlargedHardwareTracksDoNotExceedCapabilitiesButOrdinaryPlaybackRetainsItsPolicy() {
+        ActivityController<Activity> controller = Robolectric.buildActivity(Activity.class).setup();
+        try {
+            DefaultTrackSelector selector = new DefaultTrackSelector(controller.get());
+            CameraTile.configureVideoTracks(selector, true); assertFalse(selector.getParameters().exceedRendererCapabilitiesIfNecessary);
+            CameraTile.configureVideoTracks(selector, false); assertTrue(selector.getParameters().exceedRendererCapabilitiesIfNecessary);
+        } finally { controller.pause().stop().destroy(); }
+    }
+    @Test public void unsupportedTrackDetectionWaitsForVideoAndAcceptsSupportedFourK() {
+        assertFalse(CameraTile.unsupportedVideoTracks(Tracks.EMPTY));
+        assertFalse(CameraTile.unsupportedVideoTracks(videoTracks(3840, 2160, C.FORMAT_HANDLED, true)));
+        assertFalse(CameraTile.unsupportedVideoTracks(videoTracks(3840, 2160, C.FORMAT_HANDLED, false)));
+        assertTrue(CameraTile.unsupportedVideoTracks(videoTracks(4608, 1728, C.FORMAT_EXCEEDS_CAPABILITIES, false)));
+        Tracks audio = new Tracks(Collections.singletonList(new Tracks.Group(new TrackGroup("audio", new Format.Builder().setSampleMimeType(MimeTypes.AUDIO_AAC).build()), false,
+                new int[]{C.FORMAT_UNSUPPORTED_TYPE}, new boolean[]{false})));
+        assertFalse(CameraTile.unsupportedVideoTracks(audio));
+    }
+    @Test public void unsupportedMainFallsBackWithReasonAndLateTracksCannotRejectTheNextRequest() throws Exception {
+        ActivityController<Activity> controller = Robolectric.buildActivity(Activity.class).setup();
+        CameraTile tile = new CameraTile(controller.get(), "Panorama");
+        try {
+            tile.playMainOrGrid("rtsp://example.invalid/main", "rtsp://example.invalid/sub");
+            int[] releases = {0}; ExoPlayer first = fakePlayer(releases); field("player").set(tile, first);
+            Player.Listener events = listener(tile, first, new VideoProgress(SystemClock.elapsedRealtime()));
+            events.onTracksChanged(videoTracks(4608, 1728, C.FORMAT_EXCEEDS_CAPABILITIES, false));
+            assertTrue(tile.mainFormatRejected()); assertFalse(field("mainStream").getBoolean(tile));
+            assertEquals("rtsp://example.invalid/sub", field("activeUri").get(tile)); assertEquals(1, releases[0]);
+            Method live = CameraTile.class.getDeclaredMethod("liveStatus"); live.setAccessible(true);
+            assertEquals("Main format unsupported on this TV · grid stream", live.invoke(tile));
+            tile.playMainOrGrid("rtsp://example.invalid/other-main", "rtsp://example.invalid/sub");
+            ExoPlayer next = fakePlayer(releases); field("player").set(tile, next);
+            events.onTracksChanged(videoTracks(4608, 1728, C.FORMAT_EXCEEDS_CAPABILITIES, false));
+            assertSame(next, field("player").get(tile)); assertFalse(tile.mainFormatRejected()); assertNull(field("retry").get(tile));
+        } finally { tile.release(); controller.pause().stop().destroy(); }
+    }
+    @Test public void ordinaryMainDoesNotApplyTheAutomaticWallFallbackPolicy() throws Exception {
+        ActivityController<Activity> controller = Robolectric.buildActivity(Activity.class).setup();
+        CameraTile tile = new CameraTile(controller.get(), "Ordinary");
+        try {
+            tile.play("rtsp://example.invalid/main", true); ExoPlayer player = fakePlayer(new int[]{0}); field("player").set(tile, player);
+            listener(tile, player, new VideoProgress(SystemClock.elapsedRealtime())).onTracksChanged(videoTracks(4608, 1728, C.FORMAT_EXCEEDS_CAPABILITIES, false));
+            assertSame(player, field("player").get(tile)); assertFalse(tile.mainFormatRejected()); assertNull(field("retry").get(tile));
+        } finally { tile.release(); controller.pause().stop().destroy(); }
+    }
     @Test public void failedCenterFallsBackOnceAndRerenderDoesNotRetryMain() throws Exception {
         ActivityController<Activity> controller = Robolectric.buildActivity(Activity.class).setup();
         CameraTile tile = new CameraTile(controller.get(), "Center", false, true, false);
