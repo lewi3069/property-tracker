@@ -23,3 +23,13 @@ Fewer concurrent streams during four-camera activity does not establish a memory
 ## Host validation
 
 158 TV/core tests and 14 phone tests passed (172 total), both APKs built, and lint reported zero errors. Package/SDK/native-library/signing guards and eight Python checks passed. The geometry/player integration test exercises thirteen → eight → ten → seven → four → thirteen, checks all rectangles for full coverage and no overlap, verifies exactly one main decoder, retains unchanged players and releases hidden players. Policy coverage checks expansion/reduction delays, stable slot positions and minimum dwell, quiet-gap cancellation, expired events, manual/catalog overrides and opt-in guards. Existing single-motion timing and unsupported-main regression tests still pass.
+
+[GitHub verification passed](https://github.com/lewi3069/property-tracker/actions/runs/42923672546), including the default and opt-in native-surface package guards.
+
+## Short device check
+
+Version 0.2.11 was installed in place on Kevin Office Cams. The original encrypted settings files were byte-identical immediately after installation. Only the new multi-motion option was enabled; its saved state was verified. The thirteen-camera base count, original default camera, existing motion timing and stream preferences were retained.
+
+All thirteen feeds advanced in the initial quiet-period log window. Brief, non-retained, expiring display-only activity messages then exercised overlapping detections on this single TV. Passive UI captures verified the exact one-large/seven-small, two-large/eight-small and three-large/four-small rectangles with full display coverage and no overlap. Logs recorded four-large mode. The events expired naturally, and a final UI audit verified restoration of the thirteen-camera fullscreen overview. No activity-end test messages, Home Assistant sensor changes or automation-rule changes were used.
+
+These are short functional checks. They do not verify sustained simultaneous-main-stream capacity or resolve the original native-memory issue. One main-stream attempt encountered a playback error and fell back to its grid stream; main-stream compatibility remains a separate limit. Physical-TV feedback on picture quality and movement is still pending. Other TVs were left untouched, and no 0.2.11 public APK was published.
