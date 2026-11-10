@@ -31,6 +31,8 @@ The original **0.2.6 APK was restored at 7:36 PM Eastern**, with its installed S
 
 The source prototype passed **117 TV/core tests, 14 phone tests and eight Python checks**. Both default packages built and lint reported zero errors. The normal TV version remains `0.2.6`; the opt-in debug package correctly uses `0.2.6-surface-trial`, with unchanged phone identity and the expected six TV native libraries. The generated release configuration remained disabled when the trial property was supplied. CI checks both debug package identities; it publishes reports, not experimental APKs.
 
+The [complete CI run for `17d3e89`](https://github.com/lewi3069/property-tracker/actions/runs/42730626169) passed tests, builds, lint, script checks and both default/trial package guards. An earlier workflow indentation error was corrected before this successful run; no app-test failure was involved.
+
 ## Build explicitly
 
 Pass `-PpropertyTrackerNativeSurfaceTrial=true` to the existing build wrapper or Gradle. Only the TV **debug** variant receives the flag and a `-surface-trial` version suffix. Release builds retain `false`, even if that property is supplied. The runtime also requires TV mode, manufacturer Amazon, model AFTKM and API 30; otherwise the original output remains selected. The requested layout/native-engine admission rules still apply.
