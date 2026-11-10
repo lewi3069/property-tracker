@@ -2,6 +2,8 @@
 
 This is a follow-up protocol, not a completed test. The [overnight review](OVERNIGHT-REVIEW-2026-11-09.md) found rising native-allocation counters in the installed 0.2.5 thirteen-camera wall. Version 0.2.6 was subsequently [installed on five TVs](DEPLOYMENT-026.md), and the [daytime investigation](MEMORY-INVESTIGATION-2026-11-09.md) confirmed continued same-process growth followed by SIGKILL. No public 0.2.6 APK or memory fix has been released. Advancing counters, fresh screenshot crops and a stable PID do not establish a stable memory budget or continuous physical presentation.
 
+The later [controlled output experiment](NATIVE-OUTPUT-TRIAL.md) attributed growing allocations to Fire OS timing tables and tested a debug-only SurfaceView workaround. Those short traces and the restored original installation do not complete this multi-hour acceptance protocol.
+
 ## Establish a comparable baseline
 
 Run during an authorized interactive window on a designated test screen. Preserve the existing encrypted settings, camera identities, ordering, enabled flags, MQTT identity, chosen layout and original signing identity. Keep local snapshots and diagnostic captures out of Git. Do not alter encoders, broker rules or firewall settings to make a comparison pass.

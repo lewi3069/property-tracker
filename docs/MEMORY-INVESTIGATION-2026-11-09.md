@@ -1,6 +1,6 @@
 # Native-memory investigation — November 9, 2026
 
-**0.2.6 still has substantial native-allocation growth.** The same thirteen-camera process grew by 217.9 MiB over 4.08 hours and subsequently received SIGKILL. The allocation owner and the reason for that kill remain unresolved. No runtime memory fix or new APK is claimed by this investigation.
+**0.2.6 still has substantial native-allocation growth.** The same thirteen-camera process grew by 217.9 MiB over 4.08 hours and subsequently received SIGKILL. This report records the source pass that ended before interactive testing. A later [controlled output experiment](NATIVE-OUTPUT-TRIAL.md) identified retained Fire OS frame-timing allocations and an experimental drawing path; the reason for the kill and long-term stability remain unresolved. No normal-release memory fix or new public APK is claimed.
 
 ## Installed 0.2.6 evidence
 
@@ -32,7 +32,7 @@ The retained history also records the earlier 0.2.5 observation process receivin
 
 ## Source ownership review
 
-The review used the installed dependency, LibVLC Android **3.7.7**, its JNI revision **`0b8dc65efb203c86a0476bc337ddd99ecf1c0ef6`**, and its pinned VLC core **`84177b2273abc5c4300234e6e18b55a4d2dd5a03`**. The following are source observations, not allocation traces proving those paths were active on this device:
+The source pass followed LibVLC Android **3.7.7**, SDK repository reference **`0b8dc65efb203c86a0476bc337ddd99ecf1c0ef6`**, and that build script's tested core revision **`84177b2273abc5c4300234e6e18b55a4d2dd5a03`**. Subsequent inspection of the packaged ARM library found **VLC 3.0.25 / `3.0.24-35-g6ae5de1ade`** embedded in the binary. The core reference audit therefore does **not** establish an exact source-to-binary match. The following are reference-source observations, not allocation traces proving those exact implementations were active on the device; the later allocation attribution uses the actual recorded binary stacks.
 
 - The statistics JNI wrapper uses a stack statistics structure and returns a Java sample. Media track arrays are cached, and the JNI track-array call releases its core track list. The current-video-track accessor uses the existing media reference; it does not acquire an unreleased `getMedia()` reference on every poll.
 - The inspected JNI event callback deletes its temporary string reference, and attached native threads have a detach destructor. No per-poll retained native object was identified in the inspected wrappers.

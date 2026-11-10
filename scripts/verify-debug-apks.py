@@ -37,6 +37,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--aapt', type=Path, required=True)
     parser.add_argument('--build-root', type=Path, help='External propertyTrackerBuildRoot, if used')
+    parser.add_argument('--native-surface-trial', action='store_true',
+                        help='Expect the opt-in TV debug trial suffix; phone identity stays unchanged')
     args = parser.parse_args()
     config = (ROOT / 'build.gradle').read_text(encoding='utf-8')
     version = re.search(r"propertyTrackerVersion = '([^']+)'", config)[1]
@@ -48,8 +50,9 @@ def main():
             ('mobile', 'com.fieldview.mobile', 26, 36, set())):
         output = args.build_root / module if args.build_root else ROOT / module / 'build'
         apk = output / 'outputs' / 'apk' / 'debug' / f'{module}-debug.apk'
+        expected_version = version + '-surface-trial' if module == 'app' and args.native_surface_trial else version
         print(json.dumps(verify(args.aapt.resolve(), apk, package, minimum, target,
-                                version, code, libraries)))
+                                expected_version, code, libraries)))
 
 
 if __name__ == '__main__':

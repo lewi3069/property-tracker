@@ -1,13 +1,24 @@
 plugins { id 'com.android.application' }
 apply from: rootProject.file('gradle/android-common.gradle')
 
+def surfaceTrial = providers.gradleProperty('propertyTrackerNativeSurfaceTrial').getOrElse('false')
+if (!(surfaceTrial in ['true', 'false'])) {
+    throw new GradleException('propertyTrackerNativeSurfaceTrial must be true or false')
+}
 android {
     defaultConfig {
         applicationId 'com.fieldview.tv'
         minSdk 22
         buildConfigField 'boolean', 'TV_INTERFACE', 'true'
+        buildConfigField 'boolean', 'NATIVE_SURFACE_OUTPUT_TRIAL', 'false'
         ndk { abiFilters 'armeabi-v7a', 'arm64-v8a' }
     }
     sourceSets.main.java.srcDirs += ['src/tv/java']
+    buildTypes {
+        debug {
+            buildConfigField 'boolean', 'NATIVE_SURFACE_OUTPUT_TRIAL', surfaceTrial
+            if (surfaceTrial == 'true') versionNameSuffix '-surface-trial'
+        }
+    }
 }
 dependencies { implementation 'org.videolan.android:libvlc-all:3.7.7' }

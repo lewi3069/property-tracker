@@ -17,6 +17,9 @@ import java.util.concurrent.Executors;
 /** Shared native runtime, one silent software-decoded RTSP player per dense-grid tile. */
 final class GridVideoFactory {
     private static final Handler main = new Handler(Looper.getMainLooper());
+    private static final boolean surfaceTrial = NativeSurfaceTrialPolicy.enabled(
+            BuildConfig.NATIVE_SURFACE_OUTPUT_TRIAL, BuildConfig.TV_INTERFACE,
+            android.os.Build.MANUFACTURER, android.os.Build.MODEL, android.os.Build.VERSION.SDK_INT);
     private static final ExecutorService retirements=Executors.newSingleThreadExecutor(task -> {
         Thread thread=new Thread(task,"PropertyTracker-VideoRelease");thread.setDaemon(true);return thread;
     });
@@ -26,10 +29,18 @@ final class GridVideoFactory {
         android.util.Log.w("FieldviewPlayer", "event=retirement_failed stage=" + stage);
     }
     static GridVideoSession create(Context context) { return new Session(context); }
-    private static LibVLC acquire(Context context) {
-        return runtimes.acquire(() -> new LibVLC(context.getApplicationContext(),new ArrayList<>(Arrays.asList(
+    private static ArrayList<String> options() {
+        ArrayList<String> options = new ArrayList<>(Arrays.asList(
                 "--quiet","--no-audio","--no-video-title-show","--no-osd","--rtsp-tcp",
-                "--network-caching=500","--avcodec-threads=1","--android-display-chroma=RV32"))));
+                "--network-caching=500","--avcodec-threads=1","--android-display-chroma=RV32"));
+        if (surfaceTrial) options.add("--vout=android-display");
+        return options;
+    }
+    private static LibVLC acquire(Context context) {
+        return runtimes.acquire(() -> {
+            android.util.Log.i("FieldviewPlayer", "event=native_output path=" + (surfaceTrial ? "surface_trial" : "default"));
+            return new LibVLC(context.getApplicationContext(), options());
+        });
     }
     private static final class Session implements GridVideoSession {
         private final VLCVideoLayout layout;
@@ -68,7 +79,7 @@ final class GridVideoFactory {
                 if(closed||listener==null)return;
                 if(event.type==MediaPlayer.Event.EncounteredError||event.type==MediaPlayer.Event.EndReached)listener.error();
             });
-            player.attachViews(layout,null,false,true);
+            player.attachViews(layout,null,false,!surfaceTrial);
             media=new Media(runtime,android.net.Uri.parse(uri));
             media.setHWDecoderEnabled(false,false);media.addOption(":codec=avcodec");
             media.addOption(":network-caching=500");media.addOption(":rtsp-tcp");media.addOption(":no-audio");
