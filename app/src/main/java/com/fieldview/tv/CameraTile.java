@@ -23,6 +23,7 @@ import androidx.media3.common.util.UnstableApi;
 import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.ExoPlaybackException;
 import androidx.media3.exoplayer.DecoderCounters;
 import androidx.media3.exoplayer.analytics.AnalyticsListener;
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector;
@@ -114,8 +115,13 @@ public final class CameraTile extends FrameLayout {
         if (firstFrame) showStatus(liveStatus());
     }
     static boolean unsupportedVideoTracks(Tracks tracks) {
-        return tracks.containsType(C.TRACK_TYPE_VIDEO) && !tracks.isTypeSupported(C.TRACK_TYPE_VIDEO)
-                && !tracks.isTypeSelected(C.TRACK_TYPE_VIDEO);
+        boolean hasVideo = false;
+        for (Tracks.Group group : tracks.getGroups()) if (group.getType() == C.TRACK_TYPE_VIDEO) {
+            hasVideo = true;
+            for (int i = 0; i < group.length; i++)
+                if (group.isTrackSupported(i) && !HardwareMainRenderersFactory.tooWide(group.getTrackFormat(i))) return false;
+        }
+        return hasVideo;
     }
     static void configureVideoTracks(DefaultTrackSelector tracks, boolean hardwareMain) {
         tracks.setParameters(tracks.buildUponParameters().setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, true)
@@ -233,8 +239,9 @@ public final class CameraTile extends FrameLayout {
             configureVideoTracks(tracks, mainStream && fallbackUri != null);
             MediaCodecSelector codecs = mainStream && fallbackUri != null ? hardwareOnly(MediaCodecSelector.DEFAULT)
                     : decoderSelector(softwareFloatingH264, MediaCodecSelector.DEFAULT, softwareFirst(MediaCodecSelector.DEFAULT));
-            DefaultRenderersFactory renderers = new DefaultRenderersFactory(getContext()).setEnableDecoderFallback(true)
-                    .setMediaCodecSelector(codecs);
+            DefaultRenderersFactory renderers = mainStream && fallbackUri != null
+                    ? new HardwareMainRenderersFactory(getContext()) : new DefaultRenderersFactory(getContext());
+            renderers.setEnableDecoderFallback(true).setMediaCodecSelector(codecs);
             DefaultAllocator attemptAllocator = new DefaultAllocator(true, C.DEFAULT_BUFFER_SEGMENT_SIZE);
             allocator = attemptAllocator;
             player = new ExoPlayer.Builder(getContext(), renderers)
@@ -260,6 +267,13 @@ public final class CameraTile extends FrameLayout {
                 }
                 @Override public void onPlayerError(PlaybackException error) {
                     if (released || player != attempt) return;
+                    Format rejected = error instanceof ExoPlaybackException ? ((ExoPlaybackException) error).rendererFormat : null;
+                    if (mainStream && fallbackUri != null && rejected != null && HardwareMainRenderersFactory.tooWide(rejected)) {
+                        mainFormatRejected = true;
+                        Log.w("FieldviewPlayer", diagnosticPrefix() + "event=main_unsupported mime=" + rejected.sampleMimeType
+                                + " size=" + rejected.width + "x" + rejected.height);
+                        scheduleRetry("Main format unsupported on this TV"); return;
+                    }
                     String reason = PlaybackFailure.describe(error);
                     Log.w("FieldviewPlayer", diagnosticPrefix() + "event=failure code=" + error.getErrorCodeName() + " detail=" + PlaybackFailure.diagnostic(error) + "; " + reason);
                     scheduleRetry(reason);

@@ -12,6 +12,8 @@ import androidx.media3.common.TrackGroup;
 import androidx.media3.common.Tracks;
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
 import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.ExoPlaybackException;
+import androidx.media3.common.PlaybackException;
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector;
 import androidx.media3.exoplayer.mediacodec.MediaCodecInfo;
 import java.lang.reflect.Constructor;
@@ -37,6 +39,28 @@ public class CameraTileTest {
     private Tracks videoTracks(int width, int height, int support, boolean selected) {
         Format format = new Format.Builder().setSampleMimeType(MimeTypes.VIDEO_H265).setWidth(width).setHeight(height).build();
         return new Tracks(Collections.singletonList(new Tracks.Group(new TrackGroup("video", format), false, new int[]{support}, new boolean[]{selected})));
+    }
+    @Test public void knownWideRendererFormatKeepsItsReasonWhenDimensionsArriveLate() throws Exception {
+        ActivityController<Activity> controller = Robolectric.buildActivity(Activity.class).setup();
+        CameraTile tile = new CameraTile(controller.get(), "Panorama");
+        String oldModel = android.os.Build.MODEL, oldManufacturer = android.os.Build.MANUFACTURER; int oldSdk = android.os.Build.VERSION.SDK_INT;
+        try {
+            tile.playMainOrGrid("rtsp://example.invalid/main", "rtsp://example.invalid/sub");
+            ExoPlayer player = fakePlayer(new int[]{0}); field("player").set(tile, player);
+            Player.Listener events = listener(tile, player, new VideoProgress(SystemClock.elapsedRealtime()));
+            org.robolectric.util.ReflectionHelpers.setStaticField(android.os.Build.class, "MODEL", "AFTKM");
+            org.robolectric.util.ReflectionHelpers.setStaticField(android.os.Build.class, "MANUFACTURER", "Amazon");
+            org.robolectric.util.ReflectionHelpers.setStaticField(android.os.Build.VERSION.class, "SDK_INT", 30);
+            Format format = new Format.Builder().setSampleMimeType(MimeTypes.VIDEO_H265).setWidth(4608).setHeight(1728).build();
+            events.onPlayerError(ExoPlaybackException.createForRenderer(new IllegalStateException(), "video", 0, format,
+                    C.FORMAT_EXCEEDS_CAPABILITIES, false, PlaybackException.ERROR_CODE_DECODER_INIT_FAILED));
+            assertTrue(tile.mainFormatRejected()); assertEquals("rtsp://example.invalid/sub", field("activeUri").get(tile));
+        } finally {
+            org.robolectric.util.ReflectionHelpers.setStaticField(android.os.Build.class, "MODEL", oldModel);
+            org.robolectric.util.ReflectionHelpers.setStaticField(android.os.Build.class, "MANUFACTURER", oldManufacturer);
+            org.robolectric.util.ReflectionHelpers.setStaticField(android.os.Build.VERSION.class, "SDK_INT", oldSdk);
+            tile.release(); controller.pause().stop().destroy();
+        }
     }
     @Test public void enlargedHardwareTracksDoNotExceedCapabilitiesButOrdinaryPlaybackRetainsItsPolicy() {
         ActivityController<Activity> controller = Robolectric.buildActivity(Activity.class).setup();
