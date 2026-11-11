@@ -90,7 +90,7 @@ public class CameraTileTest {
             assertTrue(tile.mainFormatRejected()); assertFalse(field("mainStream").getBoolean(tile));
             assertEquals("rtsp://example.invalid/sub", field("activeUri").get(tile)); assertEquals(1, releases[0]);
             Method live = CameraTile.class.getDeclaredMethod("liveStatus"); live.setAccessible(true);
-            assertEquals("Main format unsupported on this TV · grid stream", live.invoke(tile));
+            assertEquals("Live", live.invoke(tile));
             tile.playMainOrGrid("rtsp://example.invalid/other-main", "rtsp://example.invalid/sub");
             ExoPlayer next = fakePlayer(releases); field("player").set(tile, next);
             events.onTracksChanged(videoTracks(4608, 1728, C.FORMAT_EXCEEDS_CAPABILITIES, false));

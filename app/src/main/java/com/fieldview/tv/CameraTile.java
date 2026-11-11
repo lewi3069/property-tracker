@@ -197,9 +197,8 @@ public final class CameraTile extends FrameLayout {
         queueStart();
     }
     private String liveStatus() {
-        if (!fallbackActive && !mainSuppressed) return "Live";
-        return mainFormatRejected || mainSuppressedFormatUnsupported
-                ? "Main format unsupported on this TV · grid stream" : "Grid stream · main unavailable";
+        if ((!fallbackActive && !mainSuppressed) || mainFormatRejected || mainSuppressedFormatUnsupported) return "Live";
+        return "Grid stream · main unavailable";
     }
     private void queueStart() {
         if (released) return;
