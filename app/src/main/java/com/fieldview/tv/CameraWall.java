@@ -11,6 +11,8 @@ import java.util.List;
 public final class CameraWall extends ViewGroup {
     private int featured;
     private int motionLayoutSlots;
+    private double panoramicAspect;
+    public void setPanoramicAspect(double value) { panoramicAspect = value; requestLayout(); }
     private boolean fullscreen;
     private final List<Rect> frames = new ArrayList<>();
     private final List<View> ordered = new ArrayList<>();
@@ -42,6 +44,12 @@ public final class CameraWall extends ViewGroup {
         frames.clear();
         if (count == 0) return;
         if (count == 1) { add(0, 0, 1, 1, width, height); return; }
+        if (BuildConfig.TV_INTERFACE && motionLayoutSlots == 1 && count == 5 && panoramicAspect > 2.2) {
+            double split = Math.min(.8, Math.max(.5, width / panoramicAspect / height));
+            add(0, 0, 1, split, width, height);
+            for (int column = 0; column < 4; column++) add(column / 4.0, split, (column + 1) / 4.0, 1, width, height);
+            return;
+        }
         if (BuildConfig.TV_INTERFACE && motionLayoutSlots == 2 && count == 10) {
             add(0, 0, .5, .5, width, height); add(.5, 0, 1, .5, width, height);
             for (int row = 0; row < 2; row++) for (int column = 0; column < 4; column++)

@@ -44,6 +44,7 @@ public final class MainActivity extends Activity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final StartupCoordinator startupCoordinator = StartupCoordinator.shared();
     private final Map<String, CameraTile> tiles = new LinkedHashMap<>();
+    private final Map<String, Double> videoAspects = new LinkedHashMap<>();
     private final CenterStreamBackoff centerStreamBackoff = new CenterStreamBackoff();
     private ConfigStore store;
     private AppConfig config;
@@ -300,6 +301,7 @@ public final class MainActivity extends Activity {
         selector.setMotionLayoutEight(config.motionLayoutEight && BuildConfig.TV_INTERFACE && Build.VERSION.SDK_INT >= 26
                 && config.denseGrid && config.textureGrid && playbackLimits.maxVisible == 13);
         selector.setMultiMotionLayout(config.multiMotionLayout);
+        for (Map.Entry<String, Double> entry : videoAspects.entrySet()) selector.setPanoramicCamera(entry.getKey(), entry.getValue() > 2.2);
         router = new CommandRouter(selector, (count, until) -> { layoutOverrideUntil = until; selector.setCapacity(count); });
         signature = "";
     }
@@ -348,6 +350,8 @@ public final class MainActivity extends Activity {
             }
         }
         WallStreamPlan streams = new WallStreamPlan(selection, nativeGrid, config.useMainStream, config.highResolutionCenter, unavailable, config.motionLayoutEight);
+        double wideAspect = selection.motionLayoutSlots == 1 && selection.visible.size() == 5
+                ? videoAspects.getOrDefault(selection.visible.get(0), 8.0 / 3.0) : 0;
         String nextSignature = selection.reason + selection.visible + selection.featured + config.useMainStream + fullscreen + textureGrid + config.denseGrid + config.highResolutionCenter + config.motionLayoutEight + config.multiMotionLayout + selection.motionLayoutSlots;
         if (signature.equals(nextSignature)) return;
         signature = nextSignature;
@@ -380,6 +384,11 @@ public final class MainActivity extends Activity {
                     else { selector.setMode(ViewSelector.PIN, id); render(); }
                 });
                 tiles.put(id, tile); wall.addView(tile);
+                tile.setAspectListener(ratio -> {
+                    Double old = videoAspects.put(id, ratio);
+                    selector.setPanoramicCamera(id, ratio > 2.2);
+                    if (old == null || Math.abs(old - ratio) > .01) handler.post(() -> { signature = ""; render(); });
+                });
             }
             tile.setContentDescription("Enlarge " + camera.name);
             boolean featured = selection.featured.contains(id);
@@ -398,6 +407,7 @@ public final class MainActivity extends Activity {
             ordered.add(tile);
         }
         wall.setOrder(ordered); wall.setFeaturedCount(selection.featured.size()); wall.setMotionLayoutSlots(selection.motionLayoutSlots);
+        wall.setPanoramicAspect(wideAspect);
         if (previouslyFocused != null && !ordered.isEmpty()) {
             CameraTile old = tiles.get(previouslyFocused);
             (old == null ? ordered.get(0) : old).requestFocus();

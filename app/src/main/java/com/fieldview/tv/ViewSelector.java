@@ -21,6 +21,8 @@ public final class ViewSelector {
     private String mode = AUTO, pinned;
     private String defaultCamera;
     private boolean motionLayoutEight;
+    private final java.util.Set<String> panoramic = new java.util.HashSet<>();
+    public void setPanoramicCamera(String id, boolean value) { if (value) panoramic.add(id); else panoramic.remove(id); }
     private boolean multiMotionLayout;
     private final MultiMotionLayout multiLayout = new MultiMotionLayout();
     private Selection current;
@@ -164,6 +166,7 @@ public final class ViewSelector {
         if (!PIN.equals(mode)) ordered.addAll(cameras);
         List<String> visible = new ArrayList<>(ordered);
         int visibleLimit = motionSlots == 4 ? 4 : motionSlots == 3 ? 7 : motionSlots == 2 ? 10 : motionEight ? 8 : capacity;
+        if (motionSlots == 1 && !selected.isEmpty() && panoramic.contains(selected.get(0))) visibleLimit = 5;
         if (visible.size() > visibleLimit) visible = new ArrayList<>(visible.subList(0, visibleLimit));
         return new Selection(current.reason, current.priority, selected, visible, mode, motionSlots);
     }

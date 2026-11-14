@@ -388,6 +388,24 @@ public class FullscreenLayoutTest {
             assertFalse(((AppConfig) field(MainActivity.class, "config").get(activity)).multiMotionLayout);
         } finally { controller.pause().stop().destroy(); }
     }
+    @Test public void panoramicMotionUsesFullWidthAndFourBelowWithoutReplacingTheMainPlayer() throws Exception {
+        ActivityController<MainActivity> controller = open(13, "AFTKM");
+        try {
+            MainActivity a = controller.get(); AppConfig c = (AppConfig) field(MainActivity.class, "config").get(a);
+            for (int i=9;i<13;i++) { AppConfig.Camera cam=new AppConfig.Camera();cam.id="camera-"+i;cam.name=cam.id;cam.host="192.0.2.10";c.cameras.add(cam); }
+            c.textureGrid=c.denseGrid=c.motionLayoutEight=true;
+            field(MainActivity.class,"playbackLimits").set(a,PlaybackLimits.forDevice("AFTKM",false,true));
+            invoke(a,"resetSelector");field(MainActivity.class,"setupOnly").set(a,false);field(MainActivity.class,"layoutFullscreen").set(a,true);
+            long now=org.robolectric.shadows.ShadowSystemClock.currentTimeMillis();
+            selector(a).activity("camera-12",now,now+100000);invoke(a,"render");assertFullLayout(a,8);
+            CameraTile main=tiles(a).get("camera-12");
+            Method report=CameraTile.class.getDeclaredMethod("reportAspect",int.class,int.class);report.setAccessible(true);
+            report.invoke(main,1536,576);shadowOf(Looper.getMainLooper()).idle();invoke(a,"render");assertFullLayout(a,5);
+            assertSame(main,tiles(a).get("camera-12"));assertEquals(1920,main.getWidth());assertEquals(720,main.getHeight());
+            for(CameraTile tile:tiles(a).values())if(tile!=main){assertEquals(480,tile.getWidth());assertEquals(720,tile.getTop());assertEquals(360,tile.getHeight());assertTrue(tile.usesNativeGrid());}
+            report.invoke(main,1920,1080);shadowOf(Looper.getMainLooper()).idle();invoke(a,"render");assertFullLayout(a,8);
+        } finally {controller.pause().stop().destroy();}
+    }
     private void assertMotionGeometry(MainActivity activity, int slots) {
         CameraWall wall = activity.findViewById(R.id.camera_wall);
         long area = 0; int main = 0, large = 0;

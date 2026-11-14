@@ -8,6 +8,14 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class MultiMotionLayoutTest {
+    @Test public void singlePanoramaUsesFiveButMultipleMotionAndClearRestoreTheirLayouts() {
+        ViewSelector s = selector(); s.setPanoramicCamera("camera-12", true);
+        s.activity("camera-12", 0, 100000); assertShape(s, 0, 1, 5);
+        s.activity("camera-11", 1000, 101000); s.snapshot(1000); assertShape(s, 3000, 2, 10);
+        s.clearActivity("camera-11", 4000); s.snapshot(4000); assertShape(s, 19000, 1, 5);
+        s.clearActivity("camera-12", 20000); assertShape(s, 34999, 1, 5);
+        assertEquals(13, s.snapshot(35000).visible.size());
+    }
     private ViewSelector selector() {
         List<String> ids = new ArrayList<>(); for (int i = 0; i < 13; i++) ids.add("camera-" + i);
         ViewSelector s = new ViewSelector(ids, Collections.emptyMap(), 13, 13);

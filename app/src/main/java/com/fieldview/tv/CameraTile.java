@@ -59,6 +59,16 @@ public final class CameraTile extends FrameLayout {
     private boolean mainSuppressed;
     private boolean mainFormatRejected, mainSuppressedFormatUnsupported;
     private Runnable mainUnavailable;
+    private java.util.function.DoubleConsumer aspectListener;
+    private double reportedAspect;
+    void setAspectListener(java.util.function.DoubleConsumer value) { aspectListener = value; }
+    private void reportAspect(int width, int height) {
+        if (width <= 0 || height <= 0) return;
+        double ratio = (double) width / height;
+        if (Math.abs(ratio - reportedAspect) < .01) return;
+        reportedAspect = ratio;
+        if (aspectListener != null) aspectListener.accept(ratio);
+    }
     private Runnable retry;
     private Runnable stalled;
     private VideoProgress progress;
@@ -253,6 +263,9 @@ public final class CameraTile extends FrameLayout {
                     attemptProgress.frame(SystemClock.elapsedRealtime()));
             player.setVolume(0f); surface.setPlayer(player);
             player.addListener(new Player.Listener() {
+                @Override public void onVideoSizeChanged(androidx.media3.common.VideoSize size) {
+                    if (!released && player == attempt) reportAspect(size.width, size.height);
+                }
                 @Override public void onTracksChanged(Tracks available) {
                     if (released || player != attempt || !mainStream || fallbackUri == null || !unsupportedVideoTracks(available)) return;
                     mainFormatRejected = true;
@@ -315,6 +328,7 @@ public final class CameraTile extends FrameLayout {
                 if (!firstFrame) {
                     firstFrame = true; attemptProgress.rendered(now); finishStartup(); showStatus(liveStatus());
                     GridVideoSession.Stats stats = attempt.stats();
+                    reportAspect(stats.width, stats.height);
                     Log.i("FieldviewPlayer", diagnosticPrefix() + "event=first_frame startup_ms=" + (now - attemptStartedAt)
                             + " mime=video/native size=" + stats.width + "x" + stats.height);
                 }
@@ -356,6 +370,7 @@ public final class CameraTile extends FrameLayout {
         ExoPlayer current = player; VideoProgress currentProgress = progress;
         if (gridSession != null && currentProgress != null) {
             GridVideoSession.Stats stats = gridSession.stats();
+            reportAspect(stats.width, stats.height);
             String message = diagnosticPrefix() + (stalledVideo ? "event=stalled " : "event=health ")
                     + "frame_silent_ms=" + currentProgress.silentFor(now) + " native_decoded=" + stats.decoded
                     + " native_displayed=" + stats.displayed + " native_lost=" + stats.lost + " native_input_bytes=" + stats.bytes
