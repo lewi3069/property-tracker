@@ -49,6 +49,16 @@ public final class CameraWall extends ViewGroup {
         frames.clear();
         if (count == 0) return;
         if (count == 1) { add(0, 0, 1, 1, width, height); return; }
+        if (BuildConfig.TV_INTERFACE && motionLayoutSlots == 1 && count == 11 && ViewSelector.isFourByThree(panoramicAspect)) {
+            // Fit the doorbell's measured picture, with six beside it and four below.
+            double side = Math.max(.3, Math.min(.85, panoramicAspect * height * .75 / width));
+            add(0, 0, side, .75, width, height);
+            for (int row = 0; row < 3; row++) for (int column = 0; column < 2; column++)
+                add(side + (1 - side) * column / 2, row / 4.0,
+                        side + (1 - side) * (column + 1) / 2, (row + 1) / 4.0, width, height);
+            for (int column = 0; column < 4; column++) add(column / 4.0, .75, (column + 1) / 4.0, 1, width, height);
+            return;
+        }
         if (BuildConfig.TV_INTERFACE && motionLayoutSlots == 1 && count == 5 && panoramicAspect > 2.2) {
             double split = Math.min(.8, Math.max(.5, width / panoramicAspect / height));
             add(0, 0, 1, split, width, height);

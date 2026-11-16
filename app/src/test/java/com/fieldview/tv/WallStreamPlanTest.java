@@ -12,6 +12,19 @@ import static org.junit.Assert.*;
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = 28)
 public class WallStreamPlanTest {
+    @Test public void doorbellFocusUsesOneMainAndTenGridStreamsWithNormalFallback() {
+        List<AppConfig.Camera> cameras = cameras(); List<String> ids = new ArrayList<>();
+        for (AppConfig.Camera c : cameras) ids.add(c.id);
+        ViewSelector.Selection s = new ViewSelector.Selection("activity", 20, ids.subList(0,1), ids.subList(0,11), ViewSelector.AUTO, 1);
+        WallStreamPlan normal = new WallStreamPlan(s, true, true, false, Collections.emptySet(), true);
+        WallStreamPlan fallback = new WallStreamPlan(s, true, true, false, Collections.singleton(ids.get(0)), true);
+        WallStreamPlan low = new WallStreamPlan(s, true, false, false, Collections.emptySet(), true);
+        for (int i = 0; i < 11; i++) {
+            assertEquals(i == 0, normal.main(cameras.get(i))); assertEquals(i != 0, normal.nativeGrid(cameras.get(i)));
+            assertFalse(fallback.main(cameras.get(i))); assertTrue(fallback.nativeGrid(cameras.get(i)));
+            assertFalse(low.main(cameras.get(i))); assertTrue(low.nativeGrid(cameras.get(i)));
+        }
+    }
     @Test public void panoramicPairsKeepOneMainWithSixOrEightStreamsAndFallback() {
         List<AppConfig.Camera> cameras = cameras(); List<String> ids = new ArrayList<>();
         for (AppConfig.Camera c : cameras) ids.add(c.id);

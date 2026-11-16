@@ -302,7 +302,7 @@ public final class MainActivity extends Activity {
         selector.setMotionLayoutEight(config.motionLayoutEight && BuildConfig.TV_INTERFACE && Build.VERSION.SDK_INT >= 26
                 && config.denseGrid && config.textureGrid && playbackLimits.maxVisible == 13);
         selector.setMultiMotionLayout(config.multiMotionLayout);
-        for (Map.Entry<String, Double> entry : videoAspects.entrySet()) selector.setPanoramicCamera(entry.getKey(), entry.getValue() > 2.2);
+        for (Map.Entry<String, Double> entry : videoAspects.entrySet()) selector.setVideoAspect(entry.getKey(), entry.getValue());
         router = new CommandRouter(selector, (count, until) -> { layoutOverrideUntil = until; selector.setCapacity(count); });
         signature = "";
     }
@@ -389,7 +389,7 @@ public final class MainActivity extends Activity {
                 tiles.put(id, tile); wall.addView(tile);
                 tile.setAspectListener(ratio -> {
                     Double old = videoAspects.put(id, ratio);
-                    selector.setPanoramicCamera(id, ratio > 2.2);
+                    selector.setVideoAspect(id, ratio);
                     if (old == null || Math.abs(old - ratio) > .01) handler.post(this::render);
                 });
             }

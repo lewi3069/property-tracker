@@ -21,8 +21,12 @@ public final class ViewSelector {
     private String mode = AUTO, pinned;
     private String defaultCamera;
     private boolean motionLayoutEight;
-    private final java.util.Set<String> panoramic = new java.util.HashSet<>();
-    public void setPanoramicCamera(String id, boolean value) { if (value) panoramic.add(id); else panoramic.remove(id); }
+    private final Map<String, Double> videoAspects = new HashMap<>();
+    public void setVideoAspect(String id, double aspect) {
+        if (aspect > 0 && aspect < 100) videoAspects.put(id, aspect); else videoAspects.remove(id);
+    }
+    static boolean isFourByThree(double aspect) { return aspect >= 1.28 && aspect <= 1.40; }
+    private boolean panoramic(String id) { return videoAspects.getOrDefault(id, 0.0) > 2.2; }
     private boolean multiMotionLayout;
     private final MultiMotionLayout multiLayout = new MultiMotionLayout();
     private Selection current;
@@ -61,7 +65,7 @@ public final class ViewSelector {
         cameras.clear(); cameras.addAll(ids); zones.clear();
         for (Map.Entry<String, List<String>> entry : mapping.entrySet()) zones.put(entry.getKey(), new ArrayList<>(entry.getValue()));
         motions.keySet().retainAll(cameras);
-        panoramic.retainAll(cameras);
+        videoAspects.keySet().retainAll(cameras);
         horses.entrySet().removeIf(entry -> !zones.containsKey(entry.getValue().zone));
         if (PIN.equals(mode) && !cameras.contains(pinned)) { mode = AUTO; pinned = null; }
         current = null;
@@ -167,9 +171,13 @@ public final class ViewSelector {
         if (!PIN.equals(mode)) ordered.addAll(cameras);
         List<String> visible = new ArrayList<>(ordered);
         int visibleLimit = motionSlots == 4 ? 4 : motionSlots == 3 ? 7 : motionSlots == 2 ? 10 : motionEight ? 8 : capacity;
-        if (motionSlots == 1 && !selected.isEmpty() && panoramic.contains(selected.get(0))) visibleLimit = 5;
+        if (motionSlots == 1 && !selected.isEmpty()) {
+            String focus = selected.get(0);
+            if (panoramic(focus)) visibleLimit = 5;
+            else if (isFourByThree(videoAspects.getOrDefault(focus, 0.0))) visibleLimit = 11;
+        }
         if (motionSlots == 2 && selected.size() >= 2) {
-            int wide = (panoramic.contains(selected.get(0)) ? 1 : 0) + (panoramic.contains(selected.get(1)) ? 1 : 0);
+            int wide = (panoramic(selected.get(0)) ? 1 : 0) + (panoramic(selected.get(1)) ? 1 : 0);
             visibleLimit = wide == 2 ? 6 : wide == 1 ? 8 : 10;
         }
         if (visible.size() > visibleLimit) visible = new ArrayList<>(visible.subList(0, visibleLimit));

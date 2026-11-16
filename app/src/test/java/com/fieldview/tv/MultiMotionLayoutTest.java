@@ -8,8 +8,33 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class MultiMotionLayoutTest {
+    @Test public void fourByThreeFocusUsesElevenAndRetainsMultiMotionAndQuietReturn() {
+        ViewSelector s = selector(); List<String> overview = s.snapshot(0).visible;
+        s.activity("camera-12", 1000, 101000); assertShape(s, 1000, 1, 8);
+        s.setVideoAspect("camera-12", 4.0/3); assertShape(s, 1001, 1, 11);
+        assertEquals("camera-12", s.snapshot(1001).visible.get(0));
+        s.activity("camera-11", 2000, 102000); s.snapshot(2000); assertShape(s, 4000, 2, 10);
+        s.clearActivity("camera-11", 5000); s.snapshot(5000); assertShape(s, 20000, 1, 11);
+        s.clearActivity("camera-12", 21000); assertShape(s, 35999, 1, 11);
+        assertEquals(overview, s.snapshot(36000).visible);
+    }
+    @Test public void fourByThreeMetadataDoesNotOverrideManualModesOrSurviveCameraRemoval() {
+        ViewSelector s = selector(); s.setVideoAspect("camera-12", 4.0/3);
+        s.activity("camera-12", 0, 100000); assertShape(s, 0, 1, 11);
+        s.setMode(ViewSelector.GRID, null); assertEquals(13, s.snapshot(1).visible.size());
+        s.setMode(ViewSelector.PIN, "camera-12"); assertEquals(Collections.singletonList("camera-12"), s.snapshot(2).visible);
+        s.setMode(ViewSelector.AUTO, null); s.setCapacity(9); assertEquals(9, s.snapshot(3).visible.size());
+        s.setCapacity(13); s.setMotionLayoutEight(false); assertEquals(13, s.snapshot(4).visible.size());
+        s.setMotionLayoutEight(true); assertShape(s, 5, 1, 11);
+        List<String> ids = new ArrayList<>(); for (int i = 0; i < 13; i++) ids.add("camera-" + i);
+        s.reconfigure(ids.subList(0, 12), Collections.emptyMap()); s.reconfigure(ids, Collections.emptyMap());
+        s.activity("camera-12", 6, 100006); assertShape(s, 6, 1, 8);
+        s.setVideoAspect("camera-12", 4.0/3); assertShape(s, 7, 1, 11);
+        s.setVideoAspect("camera-12", Double.NaN); assertShape(s, 8, 1, 8);
+        s.setVideoAspect("camera-12", 1); assertShape(s, 9, 1, 8);
+    }
     @Test public void singlePanoramaUsesFiveButMultipleMotionAndClearRestoreTheirLayouts() {
-        ViewSelector s = selector(); s.setPanoramicCamera("camera-12", true);
+        ViewSelector s = selector(); s.setVideoAspect("camera-12", 8.0/3);
         s.activity("camera-12", 0, 100000); assertShape(s, 0, 1, 5);
         s.activity("camera-11", 1000, 101000); s.snapshot(1000); assertShape(s, 3000, 2, 8);
         s.clearActivity("camera-11", 4000); s.snapshot(4000); assertShape(s, 19000, 1, 5);
@@ -20,13 +45,13 @@ public class MultiMotionLayoutTest {
         ViewSelector s = selector();
         s.activity("camera-12", 0, 100000); s.activity("camera-11", 1, 100001);
         List<String> featured = s.snapshot(1).featured; assertShape(s, 1, 2, 10);
-        s.setPanoramicCamera("camera-12", true); assertShape(s, 2, 2, 8);
+        s.setVideoAspect("camera-12", 8.0/3); assertShape(s, 2, 2, 8);
         assertEquals(featured, s.snapshot(2).featured);
-        s.setPanoramicCamera("camera-11", true); assertShape(s, 3, 2, 6);
+        s.setVideoAspect("camera-11", 8.0/3); assertShape(s, 3, 2, 6);
         assertEquals(featured, s.snapshot(3).featured);
-        s.setPanoramicCamera("camera-12", false); assertShape(s, 4, 2, 8);
-        s.setPanoramicCamera("camera-11", false); assertShape(s, 5, 2, 10);
-        s.setPanoramicCamera("camera-12", true); s.setMode(ViewSelector.GRID, null);
+        s.setVideoAspect("camera-12", 16.0/9); assertShape(s, 4, 2, 8);
+        s.setVideoAspect("camera-11", 16.0/9); assertShape(s, 5, 2, 10);
+        s.setVideoAspect("camera-12", 8.0/3); s.setMode(ViewSelector.GRID, null);
         assertEquals(13, s.snapshot(6).visible.size());
         s.setMode(ViewSelector.PIN, "camera-12"); assertEquals(1, s.snapshot(7).visible.size());
         s.setMode(ViewSelector.AUTO, null); s.setCapacity(9); assertEquals(9, s.snapshot(8).visible.size());
