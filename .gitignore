@@ -17,6 +17,7 @@ dist/*.aab
 .env
 .env.*
 .idea/
+.codex-attachments/
 *.iml
 __pycache__/
 *.pyc

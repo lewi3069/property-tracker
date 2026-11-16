@@ -17,3 +17,9 @@ Phone layouts, manual pins and floating video are unchanged. This is not a nativ
 ## Host validation
 
 166 TV/core and 14 phone tests passed (180 total), both APK builds and lint passed with zero errors, and package/SDK/native-library/signature guards passed. Tests cover both panoramic/regular featured orders, measured ratios and full coverage without overlap, metadata arriving during playback, unchanged active-player reuse, duplicate-metadata stability, the single-main-stream limit and fallback, manual modes and quiet restoration to thirteen.
+
+[GitHub verification passed](https://github.com/lewi3069/property-tracker/actions/runs/43891777421), including the default and opt-in native-surface package guards.
+
+## Wren Livingroom Shield
+
+The existing NVIDIA Shield installation was checked on November 16, 2026: it had the exact tested 0.2.13 APK. It was updated in place to 0.2.14/code 35. The installed APK matches the verified build, and the encrypted preferences remained byte-identical, preserving cameras, credentials, MQTT identity and viewing profile. It remained asleep and was not launched, so this verifies installation rather than live pictures. Other TVs were not changed in this update.
