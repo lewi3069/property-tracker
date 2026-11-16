@@ -406,6 +406,37 @@ public class FullscreenLayoutTest {
             report.invoke(main,1920,1080);shadowOf(Looper.getMainLooper()).idle();invoke(a,"render");assertFullLayout(a,8);
         } finally {controller.pause().stop().destroy();}
     }
+    @Test @org.robolectric.annotation.LooperMode(org.robolectric.annotation.LooperMode.Mode.PAUSED)
+    public void shieldPairMetadataChangesGeometryWithoutReplacingActivePlayers() throws Exception {
+        ActivityController<MainActivity> controller = open(13,"SHIELD Android TV");
+        try {
+            MainActivity a=controller.get(); AppConfig c=(AppConfig)field(MainActivity.class,"config").get(a);
+            for(int i=9;i<13;i++){AppConfig.Camera cam=new AppConfig.Camera();cam.id="camera-"+i;cam.name=cam.id;cam.host="192.0.2.10";c.cameras.add(cam);}
+            c.textureGrid=c.denseGrid=c.motionLayoutEight=c.multiMotionLayout=c.useMainStream=true;c.spotlightCamera="camera-1";
+            field(MainActivity.class,"playbackLimits").set(a,PlaybackLimits.forDevice("SHIELD Android TV",false,true));
+            invoke(a,"resetSelector");field(MainActivity.class,"setupOnly").set(a,false);field(MainActivity.class,"layoutFullscreen").set(a,true);
+            long now=org.robolectric.shadows.ShadowSystemClock.currentTimeMillis();
+            selector(a).activity("camera-12",now,now+100000);selector(a).activity("camera-11",now+1,now+100001);
+            invoke(a,"render");assertFullLayout(a,10);
+            java.util.List<String> active=new java.util.ArrayList<>(selector(a).snapshot(now+1).featured);
+            CameraTile first=tiles(a).get(active.get(0)),second=tiles(a).get(active.get(1));
+            Method report=CameraTile.class.getDeclaredMethod("reportAspect",int.class,int.class);report.setAccessible(true);
+            report.invoke(first,1920,1080);report.invoke(second,1536,576);
+            shadowOf(Looper.getMainLooper()).idle();invoke(a,"render");assertFullLayout(a,8);
+            assertSame(first,tiles(a).get(active.get(0)));assertSame(second,tiles(a).get(active.get(1)));
+            assertEquals(960,first.getWidth());assertEquals(540,first.getTop());assertEquals(1440,second.getWidth());assertEquals(0,second.getTop());
+            assertFalse(first.usesNativeGrid());assertTrue(second.usesNativeGrid());
+            report.invoke(first,4608,1728);shadowOf(Looper.getMainLooper()).idle();invoke(a,"render");assertFullLayout(a,6);
+            assertSame(first,tiles(a).get(active.get(0)));assertSame(second,tiles(a).get(active.get(1)));
+            assertEquals(1440,first.getWidth());assertEquals(540,first.getHeight());assertEquals(1440,second.getWidth());
+            int starts=NoVideo.starts;
+            report.invoke(first,4608,1728);shadowOf(Looper.getMainLooper()).idle();invoke(a,"render");assertEquals(starts,NoVideo.starts);
+            for(String id:active)selector(a).clearActivity(id,org.robolectric.shadows.ShadowSystemClock.currentTimeMillis());
+            invoke(a,"render");assertFullLayout(a,6);
+            org.robolectric.shadows.ShadowSystemClock.advanceBy(java.time.Duration.ofSeconds(15));
+            invoke(a,"render");assertFullLayout(a,13);assertEquals(13,c.visibleCount);
+        } finally {controller.pause().stop().destroy();}
+    }
     private void assertMotionGeometry(MainActivity activity, int slots) {
         CameraWall wall = activity.findViewById(R.id.camera_wall);
         long area = 0; int main = 0, large = 0;

@@ -295,6 +295,7 @@ public final class MainActivity extends Activity {
             ids.add(camera.id);
             if (!camera.zone.isEmpty()) zones.computeIfAbsent(camera.zone, ignored -> new ArrayList<>()).add(camera.id);
         }
+        videoAspects.keySet().retainAll(ids);
         if (selector == null || selector.maxCapacity() != playbackLimits.maxVisible) selector = new ViewSelector(ids, zones, config.visibleCount, playbackLimits.maxVisible);
         else { selector.reconfigure(ids, zones); if (layoutOverrideUntil == 0) selector.setCapacity(config.visibleCount); }
         selector.setDefaultCamera(config.spotlightCamera);
@@ -350,9 +351,11 @@ public final class MainActivity extends Activity {
             }
         }
         WallStreamPlan streams = new WallStreamPlan(selection, nativeGrid, config.useMainStream, config.highResolutionCenter, unavailable, config.motionLayoutEight);
-        double wideAspect = selection.motionLayoutSlots == 1 && selection.visible.size() == 5
-                ? videoAspects.getOrDefault(selection.visible.get(0), 8.0 / 3.0) : 0;
-        String nextSignature = selection.reason + selection.visible + selection.featured + config.useMainStream + fullscreen + textureGrid + config.denseGrid + config.highResolutionCenter + config.motionLayoutEight + config.multiMotionLayout + selection.motionLayoutSlots;
+        double firstAspect = selection.motionLayoutSlots > 0 && !selection.visible.isEmpty()
+                ? videoAspects.getOrDefault(selection.visible.get(0), selection.visible.size() == 5 ? 8.0 / 3.0 : 16.0 / 9.0) : 0;
+        double secondAspect = selection.motionLayoutSlots == 2 && selection.visible.size() > 1
+                ? videoAspects.getOrDefault(selection.visible.get(1), 16.0 / 9.0) : 0;
+        String nextSignature = selection.reason + selection.visible + selection.featured + config.useMainStream + fullscreen + textureGrid + config.denseGrid + config.highResolutionCenter + config.motionLayoutEight + config.multiMotionLayout + selection.motionLayoutSlots + ":" + firstAspect + ":" + secondAspect;
         if (signature.equals(nextSignature)) return;
         signature = nextSignature;
         android.util.Log.i("FieldviewLayout", "mode=" + selection.mode + " visible=" + selection.visible.size()
@@ -387,7 +390,7 @@ public final class MainActivity extends Activity {
                 tile.setAspectListener(ratio -> {
                     Double old = videoAspects.put(id, ratio);
                     selector.setPanoramicCamera(id, ratio > 2.2);
-                    if (old == null || Math.abs(old - ratio) > .01) handler.post(() -> { signature = ""; render(); });
+                    if (old == null || Math.abs(old - ratio) > .01) handler.post(this::render);
                 });
             }
             tile.setContentDescription("Enlarge " + camera.name);
@@ -407,7 +410,7 @@ public final class MainActivity extends Activity {
             ordered.add(tile);
         }
         wall.setOrder(ordered); wall.setFeaturedCount(selection.featured.size()); wall.setMotionLayoutSlots(selection.motionLayoutSlots);
-        wall.setPanoramicAspect(wideAspect);
+        wall.setActiveAspects(firstAspect, secondAspect);
         if (previouslyFocused != null && !ordered.isEmpty()) {
             CameraTile old = tiles.get(previouslyFocused);
             (old == null ? ordered.get(0) : old).requestFocus();

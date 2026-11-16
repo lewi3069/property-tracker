@@ -61,6 +61,7 @@ public final class ViewSelector {
         cameras.clear(); cameras.addAll(ids); zones.clear();
         for (Map.Entry<String, List<String>> entry : mapping.entrySet()) zones.put(entry.getKey(), new ArrayList<>(entry.getValue()));
         motions.keySet().retainAll(cameras);
+        panoramic.retainAll(cameras);
         horses.entrySet().removeIf(entry -> !zones.containsKey(entry.getValue().zone));
         if (PIN.equals(mode) && !cameras.contains(pinned)) { mode = AUTO; pinned = null; }
         current = null;
@@ -167,6 +168,10 @@ public final class ViewSelector {
         List<String> visible = new ArrayList<>(ordered);
         int visibleLimit = motionSlots == 4 ? 4 : motionSlots == 3 ? 7 : motionSlots == 2 ? 10 : motionEight ? 8 : capacity;
         if (motionSlots == 1 && !selected.isEmpty() && panoramic.contains(selected.get(0))) visibleLimit = 5;
+        if (motionSlots == 2 && selected.size() >= 2) {
+            int wide = (panoramic.contains(selected.get(0)) ? 1 : 0) + (panoramic.contains(selected.get(1)) ? 1 : 0);
+            visibleLimit = wide == 2 ? 6 : wide == 1 ? 8 : 10;
+        }
         if (visible.size() > visibleLimit) visible = new ArrayList<>(visible.subList(0, visibleLimit));
         return new Selection(current.reason, current.priority, selected, visible, mode, motionSlots);
     }

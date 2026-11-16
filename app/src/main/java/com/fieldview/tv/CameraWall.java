@@ -12,7 +12,12 @@ public final class CameraWall extends ViewGroup {
     private int featured;
     private int motionLayoutSlots;
     private double panoramicAspect;
-    public void setPanoramicAspect(double value) { panoramicAspect = value; requestLayout(); }
+    private double secondaryAspect;
+    public void setActiveAspects(double first, double second) {
+        panoramicAspect = first > 0 && first < 100 ? first : 0;
+        secondaryAspect = second > 0 && second < 100 ? second : 0;
+        requestLayout();
+    }
     private boolean fullscreen;
     private final List<Rect> frames = new ArrayList<>();
     private final List<View> ordered = new ArrayList<>();
@@ -54,6 +59,31 @@ public final class CameraWall extends ViewGroup {
             add(0, 0, .5, .5, width, height); add(.5, 0, 1, .5, width, height);
             for (int row = 0; row < 2; row++) for (int column = 0; column < 4; column++)
                 add(column / 4.0, .5 + row / 4.0, (column + 1) / 4.0, .5 + (row + 1) / 4.0, width, height);
+            return;
+        }
+        if (BuildConfig.TV_INTERFACE && motionLayoutSlots == 2 && count == 6 && panoramicAspect > 2.2 && secondaryAspect > 2.2) {
+            // Fit both panoramic images in a shared column, with four thumbnails beside them.
+            double reciprocal = 1 / panoramicAspect + 1 / secondaryAspect;
+            double side = Math.max(.5, Math.min(.85, (double) height / width / reciprocal));
+            double split = (1 / panoramicAspect) / reciprocal;
+            add(0, 0, side, split, width, height); add(0, split, side, 1, width, height);
+            for (int row = 0; row < 4; row++) add(side, row / 4.0, 1, (row + 1) / 4.0, width, height);
+            return;
+        }
+        if (BuildConfig.TV_INTERFACE && motionLayoutSlots == 2 && count == 8 && (panoramicAspect > 2.2 || secondaryAspect > 2.2)) {
+            boolean firstWide = panoramicAspect > 2.2;
+            double wide = firstWide ? panoramicAspect : secondaryAspect;
+            double regular = firstWide ? secondaryAspect : panoramicAspect;
+            if (!(regular > 0)) regular = 16.0 / 9.0;
+            double topWidth = Math.max(.3, Math.min(.85, wide * height / (2 * width)));
+            double bottomWidth = Math.max(.3, Math.min(.85, regular * height / (2 * width)));
+            // Keep the featured order (and its one-main-decoder assignment) stable.
+            if (firstWide) { add(0, 0, topWidth, .5, width, height); add(0, .5, bottomWidth, 1, width, height); }
+            else { add(0, .5, bottomWidth, 1, width, height); add(0, 0, topWidth, .5, width, height); }
+            for (int row = 0; row < 2; row++) add(topWidth, row / 4.0, 1, (row + 1) / 4.0, width, height);
+            for (int row = 0; row < 2; row++) for (int column = 0; column < 2; column++)
+                add(bottomWidth + (1 - bottomWidth) * column / 2, .5 + row / 4.0,
+                        bottomWidth + (1 - bottomWidth) * (column + 1) / 2, .5 + (row + 1) / 4.0, width, height);
             return;
         }
         if (BuildConfig.TV_INTERFACE && motionLayoutSlots == 4 && count == 4) {

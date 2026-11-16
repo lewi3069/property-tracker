@@ -12,6 +12,17 @@ import static org.junit.Assert.*;
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = 28)
 public class WallStreamPlanTest {
+    @Test public void panoramicPairsKeepOneMainWithSixOrEightStreamsAndFallback() {
+        List<AppConfig.Camera> cameras = cameras(); List<String> ids = new ArrayList<>();
+        for (AppConfig.Camera c : cameras) ids.add(c.id);
+        for (int count : new int[]{6,8}) {
+            ViewSelector.Selection s = new ViewSelector.Selection("activity",20,ids.subList(0,2),ids.subList(0,count),ViewSelector.AUTO,2);
+            WallStreamPlan p = new WallStreamPlan(s,true,true,false,Collections.emptySet(),true);
+            for (int i=0;i<count;i++) { assertEquals(i==0,p.main(cameras.get(i))); assertEquals(i!=0,p.nativeGrid(cameras.get(i))); }
+            p = new WallStreamPlan(s,true,true,false,Collections.singleton(ids.get(0)),true);
+            for (int i=0;i<count;i++) { assertFalse(p.main(cameras.get(i))); assertTrue(p.nativeGrid(cameras.get(i))); }
+        }
+    }
     @Test public void multiMotionLayoutsUseAtMostOneMainAndRespectQualityAndFallback() {
         List<AppConfig.Camera> cameras = cameras(); List<String> ids = new ArrayList<>();
         for (AppConfig.Camera camera : cameras) ids.add(camera.id);
