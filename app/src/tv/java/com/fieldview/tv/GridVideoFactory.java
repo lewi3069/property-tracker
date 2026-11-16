@@ -55,7 +55,9 @@ final class GridVideoFactory {
                 if(closed||media==null)return;
                 IMedia.Stats sample=media.getStats();
                 if(sample!=null) {
-                    Media.VideoTrack track=player.getCurrentVideoTrack();
+                    // LibVLC caches Media's first track list. Querying during RTSP
+                    // startup can cache an empty list for the entire session.
+                    Media.VideoTrack track=sample.displayedPictures>0 ? player.getCurrentVideoTrack() : null;
                     Stats before=latest;
                     latest=new Stats(sample.decodedVideo,sample.displayedPictures,sample.lostPictures,sample.readBytes,
                             track==null?0:track.width,track==null?0:track.height,

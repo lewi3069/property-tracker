@@ -67,6 +67,7 @@ public final class CameraTile extends FrameLayout {
         double ratio = (double) width / height;
         if (Math.abs(ratio - reportedAspect) < .01) return;
         reportedAspect = ratio;
+        Log.i("FieldviewPlayer", diagnosticPrefix() + "event=video_size size=" + width + "x" + height);
         if (aspectListener != null) aspectListener.accept(ratio);
     }
     private Runnable retry;
@@ -372,6 +373,7 @@ public final class CameraTile extends FrameLayout {
             GridVideoSession.Stats stats = gridSession.stats();
             reportAspect(stats.width, stats.height);
             String message = diagnosticPrefix() + (stalledVideo ? "event=stalled " : "event=health ")
+                    + "video_width=" + stats.width + " video_height=" + stats.height + " "
                     + "frame_silent_ms=" + currentProgress.silentFor(now) + " native_decoded=" + stats.decoded
                     + " native_displayed=" + stats.displayed + " native_lost=" + stats.lost + " native_input_bytes=" + stats.bytes
                     + " native_demux_bytes=" + stats.demuxBytes + " native_media_time_ms=" + stats.mediaTimeMs
