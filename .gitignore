@@ -8,6 +8,7 @@ local.properties
 test-results/
 dist/*.apk
 dist/*.aab
+dist/*-claude-review.zip
 *.keystore
 *.jks
 *.p12
