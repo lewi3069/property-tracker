@@ -8,6 +8,13 @@ import java.util.List;
 import static org.junit.Assert.*;
 
 public class CameraCatalogTest {
+    @Test public void fasterMotionDefaultsOnAndCanRoundTripOffWithoutChangingCatalogOrIdentity() throws Exception {
+        AppConfig c = new AppConfig(); c.cameras.add(camera("barn")); c.visibleCount = 13;
+        org.json.JSONObject old = c.toJson(); old.remove("fastMotion"); assertTrue(AppConfig.fromJson(old).fastMotion);
+        c.fastMotion = false; AppConfig restored = AppConfig.fromJson(c.toJson());
+        assertFalse(restored.fastMotion); assertEquals(c.clientId, restored.clientId); assertEquals(13, restored.visibleCount);
+        assertEquals(c.cameras.get(0).toJson().toString(), restored.cameras.get(0).toJson().toString());
+    }
     @Test public void multiMotionIsOptInAndPreservesExistingSettingsOnRoundTrip() throws Exception {
         AppConfig config = new AppConfig(); config.cameras.add(camera("barn")); config.visibleCount = 13;
         config.motionLayoutEight = true; config.brokerUser = "test-viewer"; config.brokerPassword = "test-only";

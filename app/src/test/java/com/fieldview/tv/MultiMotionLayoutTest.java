@@ -8,6 +8,31 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class MultiMotionLayoutTest {
+    @Test public void fastResponseExpandsAfterOneSecondAndReplacesAfterFiveButStillWaitsForQuiet() {
+        ViewSelector s = selector(); s.setFastMotion(true);
+        s.activity("camera-12", 0, 100000); assertShape(s, 0, 1, 8);
+        s.activity("camera-11", 1000, 101000); s.snapshot(1000);
+        assertShape(s, 1999, 1, 8); assertShape(s, 2000, 2, 10);
+        s.activity("camera-10", 2500, 102500); s.snapshot(2500); assertShape(s, 3500, 3, 7);
+        s.activity("camera-9", 4000, 104000); s.snapshot(4000); assertShape(s, 5000, 4, 4);
+        for (int i = 9; i <= 12; i++) s.clearActivity("camera-" + i, 7000);
+        assertShape(s, 21999, 4, 4); assertEquals(13, s.snapshot(22000).visible.size());
+    }
+    @Test public void fastFourSlotViewRetainsEachCameraForFiveSecondsBeforeReplacement() {
+        ViewSelector s = selector(); s.setFastMotion(true);
+        for (int i = 9; i <= 12; i++) s.activity("camera-" + i, 0, 100000);
+        assertShape(s, 0, 4, 4); assertTrue(s.snapshot(0).featured.contains("camera-9"));
+        s.activity("camera-8", 1000, 101000);
+        assertTrue(s.snapshot(4999).featured.contains("camera-9")); assertFalse(s.snapshot(4999).featured.contains("camera-8"));
+        assertFalse(s.snapshot(5000).featured.contains("camera-9")); assertTrue(s.snapshot(5000).featured.contains("camera-8"));
+    }
+    @Test public void fastSingleFocusChangesAtFiveSecondsAndCalmCanBeRestored() {
+        ViewSelector s = selector(); s.setMultiMotionLayout(false); s.setFastMotion(true);
+        s.activity("camera-12", 0, 100000); s.snapshot(0); s.activity("camera-11", 1000, 101000);
+        assertEquals("camera-12", s.snapshot(4999).featured.get(0)); assertEquals("camera-11", s.snapshot(5000).featured.get(0));
+        s.setFastMotion(false); s.activity("camera-10", 6000, 106000);
+        assertEquals("camera-11", s.snapshot(14999).featured.get(0)); assertEquals("camera-10", s.snapshot(15000).featured.get(0));
+    }
     @Test public void fourByThreeFocusUsesElevenAndRetainsMultiMotionAndQuietReturn() {
         ViewSelector s = selector(); List<String> overview = s.snapshot(0).visible;
         s.activity("camera-12", 1000, 101000); assertShape(s, 1000, 1, 8);

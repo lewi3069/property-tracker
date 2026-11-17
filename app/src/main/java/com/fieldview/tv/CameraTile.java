@@ -38,19 +38,21 @@ import java.util.List;
 
 @UnstableApi
 public final class CameraTile extends FrameLayout {
-    private final PlayerView surface;
+    private PlayerView surface;
     private final TextView status;
     private final boolean floating;
-    private final boolean texture;
+    private boolean texture;
     private StartupCoordinator coordinator = StartupCoordinator.shared();
     private GridVideoSession gridSession;
+    private GridVideoSession previewSession;
+    private VideoProgress previewProgress;
     private StartupCoordinator.Ticket startup;
     private String cameraLabel;
     private final String session = java.util.UUID.randomUUID().toString().substring(0, 8);
     private int generation;
     private long attemptStartedAt;
     private boolean mainStream;
-    private final boolean nativeGrid;
+    private boolean nativeGrid;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private ExoPlayer player;
     private String activeUri;
@@ -99,20 +101,59 @@ public final class CameraTile extends FrameLayout {
         setContentDescription("Enlarge " + name);
         setPadding(dp(3), dp(3), dp(3), dp(3));
         // Native playback supplies its own view. Avoid inflating a hidden Media3 hierarchy per tile.
-        if (this.nativeGrid) surface = null;
-        else {
-            surface = floating || texture ? (PlayerView) LayoutInflater.from(context).inflate(texture ? R.layout.grid_texture_player : R.layout.floating_player, this, false) : new PlayerView(context);
-            surface.setUseController(false);
-            surface.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT);
-            surface.setFocusable(false); surface.setDescendantFocusability(FOCUS_BLOCK_DESCENDANTS);
-            addView(surface, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-        }
+        if (!this.nativeGrid) ensureSurface();
         status = new TextView(context); status.setTextColor(0xFFE3EFDB); status.setTextSize(12);
         status.setMaxLines(3);
         status.setPadding(dp(10), dp(5), dp(10), dp(5)); status.setBackgroundColor(0xB0000000);
         addView(status, new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.START));
         setOnFocusChangeListener((view, focus) -> updateBorder());
         updateBorder();
+    }
+
+    private void ensureSurface() {
+        if (surface != null) return;
+        surface = floating || texture ? (PlayerView) LayoutInflater.from(getContext()).inflate(texture ? R.layout.grid_texture_player : R.layout.floating_player, this, false) : new PlayerView(getContext());
+        surface.setUseController(false); surface.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT);
+        surface.setFocusable(false); surface.setDescendantFocusability(FOCUS_BLOCK_DESCENDANTS);
+        // A retained native TextureView stays attached above the new main SurfaceView.
+        addView(surface, 0, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+    }
+
+    /** Reuse live grid video while one hardware main connects, without moving its native view. */
+    boolean prepareMainFromGrid(String main, String grid) {
+        if (released || !nativeGrid || gridSession == null || !gridSession.supportsLivePreview() || !firstFrame || progress == null
+                || progress.silentFor(SystemClock.elapsedRealtime()) >= 5_000 || !grid.equals(requestedUri)
+                || main.equals(grid) || coordinator == null) return false;
+        clearStallTimeout(); finishStartup();
+        previewSession = gridSession; previewProgress = progress; gridSession = null;
+        nativeGrid = false; texture = false; firstFrame = false; mainStream = true;
+        requestedUri = activeUri = main; fallbackUri = grid; fallbackActive = false;
+        mainFormatRejected = false; attempts = stalledRecoveries = 0;
+        ensureSurface();
+        Log.i("FieldviewPlayer", diagnosticPrefix() + "event=preview_retained");
+        queueStart(); return true;
+    }
+
+    private void releasePreview() {
+        GridVideoSession old = previewSession; previewSession = null; previewProgress = null;
+        if (old == null) return;
+        Runnable complete = coordinator.beginRelease();
+        Log.i("FieldviewPlayer", diagnosticPrefix() + "event=preview_release");
+        old.close(complete); removeView(old.view());
+    }
+
+    private boolean restorePreview() {
+        if (previewSession == null || previewProgress == null || previewProgress.stalled(SystemClock.elapsedRealtime())) return false;
+        releasePrimaryPlayer();
+        gridSession = previewSession; progress = previewProgress; previewSession = null; previewProgress = null;
+        if (surface != null) { removeView(surface); surface = null; }
+        nativeGrid = texture = true; firstFrame = true; mainStream = fallbackActive = false;
+        requestedUri = activeUri = fallbackUri; fallbackUri = null;
+        attempts = stalledRecoveries = 0; nextHealthLogAt = SystemClock.elapsedRealtime() + 30_000;
+        GridVideoSession.Stats size = gridSession.stats(); reportAspect(size.width, size.height);
+        showStatus(liveStatus()); armStallTimeout();
+        Log.i("FieldviewPlayer", diagnosticPrefix() + "event=preview_restored");
+        return true;
     }
 
     public void setFeatured(boolean value) { featured = value; if (startup != null) startup.prioritize(value); updateBorder(); }
@@ -214,7 +255,7 @@ public final class CameraTile extends FrameLayout {
     private void queueStart() {
         if (released) return;
         if (coordinator == null) { startPlayer(); return; }
-        showStatus("Waiting to connect…");
+        showStatus(previewSession != null ? "Live" : "Waiting to connect…");
         startup = coordinator.enqueue(featured, ticket -> {
             if (released || startup != ticket) { ticket.finish(); return; }
             startPlayer();
@@ -237,7 +278,7 @@ public final class CameraTile extends FrameLayout {
         VideoProgress attemptProgress = new VideoProgress(SystemClock.elapsedRealtime());
         progress = attemptProgress;
         nextHealthLogAt = SystemClock.elapsedRealtime() + 30_000;
-        showStatus("Connecting…");
+        showStatus(previewSession != null ? "Live" : "Connecting…");
         armStallTimeout();
         if (nativeGrid) {
             try { startNativeGrid(attemptProgress); }
@@ -294,15 +335,16 @@ public final class CameraTile extends FrameLayout {
                 @Override public void onRenderedFirstFrame() {
                     if (released || player != attempt) return;
                     firstFrame = true; attemptProgress.rendered(SystemClock.elapsedRealtime()); showStatus(liveStatus());
-                    finishStartup();
                     Format format = attempt.getVideoFormat();
                     Log.i("FieldviewPlayer", diagnosticPrefix() + "event=first_frame startup_ms=" + (SystemClock.elapsedRealtime() - attemptStartedAt)
                             + (format == null ? "" : " mime=" + format.sampleMimeType + " size=" + format.width + "x" + format.height + " fps=" + format.frameRate));
+                    releasePreview();
+                    finishStartup();
                 }
                 @Override public void onPlaybackStateChanged(int state) {
                     if (released || player != attempt) return;
                     if (state == Player.STATE_READY && firstFrame) showStatus(liveStatus());
-                    else if (state == Player.STATE_BUFFERING) { showStatus("Buffering…"); armStallTimeout(); }
+                    else if (state == Player.STATE_BUFFERING) { showStatus(previewSession != null ? "Live" : "Buffering…"); armStallTimeout(); }
                     else if (state == Player.STATE_ENDED) scheduleRetry("Camera stream ended");
                 }
             });
@@ -324,6 +366,7 @@ public final class CameraTile extends FrameLayout {
         Log.i("FieldviewPlayer", diagnosticPrefix() + "event=decoder name=libvlc.avcodec.software");
         attempt.start(activeUri, new GridVideoSession.Listener() {
             @Override public void frames() {
+                if (!released && previewSession == attempt) { attemptProgress.frame(SystemClock.elapsedRealtime()); return; }
                 if (released || gridSession != attempt) return;
                 long now = SystemClock.elapsedRealtime(); attemptProgress.frame(now);
                 if (!firstFrame) {
@@ -335,6 +378,7 @@ public final class CameraTile extends FrameLayout {
                 }
             }
             @Override public void error() {
+                if (!released && previewSession == attempt) { releasePreview(); showStatus("Connecting…"); return; }
                 if (released || gridSession != attempt) return;
                 Log.w("FieldviewPlayer", diagnosticPrefix() + "event=failure code=NATIVE_STREAM_ERROR");
                 scheduleRetry("Camera stream unavailable");
@@ -406,6 +450,7 @@ public final class CameraTile extends FrameLayout {
         clearStallTimeout();
         if (mainStream && fallbackUri != null) {
             Log.i("FieldviewPlayer", diagnosticPrefix() + "event=fallback code=MAIN_STREAM_UNAVAILABLE reason=" + reason);
+            if (restorePreview()) { if (mainUnavailable != null) mainUnavailable.run(); return; }
             releasePlayer();
             activeUri = fallbackUri; fallbackActive = true; mainStream = false; attempts = 0; stalledRecoveries = 0;
             showStatus("Main unavailable · switching to grid stream…");
@@ -431,6 +476,11 @@ public final class CameraTile extends FrameLayout {
     }
 
     private void releasePlayer() {
+        releasePreview();
+        releasePrimaryPlayer();
+    }
+
+    private void releasePrimaryPlayer() {
         ExoPlayer previous = player;
         GridVideoSession previousGrid = gridSession; gridSession = null;
         StartupCoordinator.Ticket previousStartup = startup; startup = null;

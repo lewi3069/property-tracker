@@ -21,6 +21,8 @@ public final class ViewSelector {
     private String mode = AUTO, pinned;
     private String defaultCamera;
     private boolean motionLayoutEight;
+    private boolean fastMotion;
+    public void setFastMotion(boolean value) { fastMotion = value; multiLayout.setFastMotion(value); }
     private final Map<String, Double> videoAspects = new HashMap<>();
     public void setVideoAspect(String id, double aspect) {
         if (aspect > 0 && aspect < 100) videoAspects.put(id, aspect); else videoAspects.remove(id);
@@ -154,7 +156,7 @@ public final class ViewSelector {
         // short motion/off bursts. Other layouts and explicit Grid/Pin stay immediate.
         boolean calmHold = adaptive && activitySelected && (motionIds.isEmpty()
                 ? within(now, lastMotionEndedAt, MOTION_QUIET_MS)
-                : within(now, changedAt, MOTION_CAMERA_DWELL_MS));
+                : within(now, changedAt, fastMotion ? 5_000 : MOTION_CAMERA_DWELL_MS));
         boolean hold = calmHold || ((!adaptive || !activitySelected) && current != null && !current.featured.isEmpty() && eligible.containsAll(current.featured)
                 && priority <= current.priority && within(now, changedAt, 8_000));
         if (!same && !hold) { current = new Selection(reason, priority, featured, Collections.emptyList(), mode); changedAt = now; }

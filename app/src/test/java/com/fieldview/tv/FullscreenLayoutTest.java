@@ -99,7 +99,7 @@ public class FullscreenLayoutTest {
                 .putExtra(MainActivity.EXTRA_SETUP_ONLY, true);
         ActivityController<MainActivity> controller = Robolectric.buildActivity(MainActivity.class, intent).create();
         MainActivity activity = controller.get(); AppConfig config = new AppConfig();
-        config.visibleCount = count; config.useMainStream = false;
+        config.visibleCount = count; config.useMainStream = false; config.fastMotion = false; // Existing timing cases exercise Calm mode.
         for (int i = 0; i < 9; i++) {
             AppConfig.Camera camera = new AppConfig.Camera(); camera.id = "camera-" + i;
             camera.name = "Camera " + i; camera.host = "192.0.2.10"; config.cameras.add(camera);
@@ -473,6 +473,50 @@ public class FullscreenLayoutTest {
             org.robolectric.shadows.ShadowSystemClock.advanceBy(java.time.Duration.ofSeconds(15)); invoke(a, "render"); assertFullLayout(a, 13);
             assertEquals("camera-1", selector(a).snapshot(org.robolectric.shadows.ShadowSystemClock.currentTimeMillis()).visible.get(0)); assertEquals(13, c.visibleCount);
         } finally { controller.pause().stop().destroy(); }
+    }
+    @Test @org.robolectric.annotation.LooperMode(org.robolectric.annotation.LooperMode.Mode.PAUSED)
+    public void fastMotionRetainsTheLiveTileAndRetiresTheOldMainBeforeStartingTheNewOne() throws Exception {
+        ActivityController<MainActivity> controller = open(13, "SHIELD Android TV");
+        try {
+            MainActivity a = controller.get(); AppConfig c = (AppConfig) field(MainActivity.class, "config").get(a);
+            for (int i = 9; i < 13; i++) { AppConfig.Camera cam = new AppConfig.Camera(); cam.id = "camera-" + i; cam.name = cam.id; cam.host = "192.0.2.10"; c.cameras.add(cam); }
+            c.textureGrid = c.denseGrid = c.motionLayoutEight = c.multiMotionLayout = c.useMainStream = c.fastMotion = c.highResolutionCenter = true;
+            c.spotlightCamera = "camera-1";
+            field(MainActivity.class, "playbackLimits").set(a, PlaybackLimits.forDevice("SHIELD Android TV", false, true));
+            invoke(a, "resetSelector"); field(MainActivity.class, "setupOnly").set(a, false); field(MainActivity.class, "layoutFullscreen").set(a, true);
+            invoke(a, "render"); assertFullLayout(a, 13);
+            CameraTile oldMain = tiles(a).get("camera-1"), warm = tiles(a).get("camera-12");
+            androidx.media3.exoplayer.ExoPlayer oldMock = (androidx.media3.exoplayer.ExoPlayer) field(CameraTile.class, "player").get(warm);
+            oldMock.release(); field(CameraTile.class, "player").set(warm, null);
+            View nativeView = new View(a); warm.addView(nativeView, 0); int[] closes = {0};
+            GridVideoSession live = new GridVideoSession() {
+                public View view() { return nativeView; }
+                public void start(String uri, Listener listener) { fail("Existing live grid must not reconnect"); }
+                public Stats stats() { return new Stats(100, 100, 0, 1000, 640, 360); }
+                public boolean supportsLivePreview() { return true; }
+                public void close(Runnable complete) { closes[0]++; complete.run(); }
+            };
+            VideoProgress health = new VideoProgress(android.os.SystemClock.elapsedRealtime());
+            health.frame(android.os.SystemClock.elapsedRealtime()); health.rendered(android.os.SystemClock.elapsedRealtime());
+            field(CameraTile.class, "gridSession").set(warm, live); field(CameraTile.class, "progress").set(warm, health); field(CameraTile.class, "firstFrame").setBoolean(warm, true);
+            NoVideo.beforeStart = tile -> {
+                if (tile == warm) try { assertNull("Only one main decoder may be alive", field(CameraTile.class, "player").get(oldMain)); }
+                catch (Exception e) { throw new AssertionError(e); }
+            };
+            long now = org.robolectric.shadows.ShadowSystemClock.currentTimeMillis(); selector(a).activity("camera-12", now, now + 100000);
+            invoke(a, "render"); assertFullLayout(a, 8); assertSame(warm, tiles(a).get("camera-12"));
+            assertSame(warm, nativeView.getParent()); assertEquals(0, closes[0]);
+            assertSame(live, field(CameraTile.class, "previewSession").get(warm)); assertFalse(warm.usesNativeGrid());
+            int main = 0; for (CameraTile tile : tiles(a).values()) if (!tile.usesNativeGrid()) main++; assertEquals(1, main);
+            assertTrue(tiles(a).size() + 1 <= 13); // The retained preview also counts toward the stream budget.
+            selector(a).clearActivity("camera-12", org.robolectric.shadows.ShadowSystemClock.currentTimeMillis()); invoke(a, "render");
+            org.robolectric.shadows.ShadowSystemClock.advanceBy(java.time.Duration.ofSeconds(15)); invoke(a, "render"); assertFullLayout(a, 13);
+            assertEquals(1, closes[0]); assertNull(nativeView.getParent());
+            invoke(a, "showLayout"); AlertDialog dialog = ShadowAlertDialog.getLatestAlertDialog();
+            CheckBox fast = dialog.findViewById(R.id.layout_fast_motion); assertTrue(fast.isChecked()); fast.setChecked(false);
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick(); shadowOf(Looper.getMainLooper()).idle();
+            assertFalse(((AppConfig) field(MainActivity.class, "config").get(a)).fastMotion);
+        } finally { NoVideo.beforeStart = null; controller.pause().stop().destroy(); }
     }
     private void assertMotionGeometry(MainActivity activity, int slots) {
         CameraWall wall = activity.findViewById(R.id.camera_wall);

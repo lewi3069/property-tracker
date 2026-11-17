@@ -36,6 +36,88 @@ import static org.robolectric.Shadows.shadowOf;
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = 28)
 public class CameraTileTest {
+    private static final String GRID = "rtsp://example.invalid/sub", MAIN = "rtsp://example.invalid/main";
+    private static final class LiveGrid implements GridVideoSession {
+        final android.view.View view; int closes; Runnable complete; boolean overlay = true;
+        LiveGrid(Activity a) { view = new android.view.View(a); }
+        public android.view.View view() { return view; }
+        public void start(String uri, Listener callbacks) { fail("A retained preview must not reconnect"); }
+        public Stats stats() { return new Stats(100, 100, 0, 1000, 640, 360); }
+        public boolean supportsLivePreview() { return overlay; }
+        public void close(Runnable done) { closes++; complete = done; }
+        void finishClose() { if (complete != null) { Runnable done = complete; complete = null; done.run(); } }
+    }
+    private CameraTile warm(Activity a, LiveGrid grid) throws Exception {
+        CameraTile tile = new CameraTile(a, "Warm camera", false, true, true);
+        tile.configureStartup(new StartupCoordinator(new StartupCoordinator.Scheduler() {
+            public void post(Runnable task, long delay) { }
+            public void remove(Runnable task) { }
+        }, 2, 20000), "warm-camera");
+        tile.addView(grid.view(), 0); a.setContentView(tile);
+        VideoProgress progress = new VideoProgress(SystemClock.elapsedRealtime());
+        progress.frame(SystemClock.elapsedRealtime()); progress.rendered(SystemClock.elapsedRealtime());
+        field("progress").set(tile, progress); field("gridSession").set(tile, grid);
+        field("firstFrame").setBoolean(tile, true); field("requestedUri").set(tile, GRID); field("activeUri").set(tile, GRID);
+        return tile;
+    }
+    @Test public void liveGridStaysAttachedUntilTheMainActuallyRendersAndIsReleasedOnce() throws Exception {
+        ActivityController<Activity> c = Robolectric.buildActivity(Activity.class).setup(); LiveGrid grid = new LiveGrid(c.get());
+        CameraTile tile = warm(c.get(), grid);
+        try {
+            assertTrue(tile.prepareMainFromGrid(MAIN, GRID)); tile.playMainOrGrid(MAIN, GRID);
+            assertSame(tile, grid.view().getParent()); assertEquals(0, grid.closes); assertFalse(tile.usesNativeGrid());
+            assertFalse(tile.usesTexture()); assertSame(grid, field("previewSession").get(tile));
+            androidx.media3.ui.PlayerView surface = (androidx.media3.ui.PlayerView) field("surface").get(tile);
+            assertTrue(surface.getVideoSurfaceView() instanceof android.view.SurfaceView);
+            assertTrue(tile.indexOfChild(surface) < tile.indexOfChild(grid.view()));
+            int[] released = {0}; ExoPlayer main = fakePlayer(released); field("player").set(tile, main);
+            Player.Listener events = listener(tile, main, new VideoProgress(SystemClock.elapsedRealtime()));
+            events.onPlaybackStateChanged(Player.STATE_BUFFERING); assertEquals(0, grid.closes);
+            events.onRenderedFirstFrame(); assertEquals(1, grid.closes); assertNull(grid.view().getParent());
+            assertNull(field("previewSession").get(tile)); assertSame(main, field("player").get(tile));
+            events.onRenderedFirstFrame(); assertEquals(1, grid.closes);
+            tile.release(); assertEquals(1, released[0]); grid.finishClose();
+        } finally { tile.release(); grid.finishClose(); c.pause().stop().destroy(); }
+    }
+    @Test public void failedMainReusesLiveGridWithoutReconnectOrLosingItsFrameHealth() throws Exception {
+        ActivityController<Activity> c = Robolectric.buildActivity(Activity.class).setup(); LiveGrid grid = new LiveGrid(c.get());
+        CameraTile tile = warm(c.get(), grid);
+        try {
+            Object health = field("progress").get(tile); int[] notified = {0}; tile.setMainUnavailableListener(() -> notified[0]++);
+            assertTrue(tile.prepareMainFromGrid(MAIN, GRID)); int[] releases = {0}; ExoPlayer main = fakePlayer(releases); field("player").set(tile, main);
+            listener(tile, main, new VideoProgress(SystemClock.elapsedRealtime())).onPlayerError(
+                    new PlaybackException("test", null, PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED));
+            assertEquals(1, releases[0]); assertEquals(1, notified[0]); assertEquals(0, grid.closes);
+            assertTrue(tile.usesNativeGrid()); assertTrue(tile.usesTexture()); assertSame(grid, field("gridSession").get(tile));
+            assertSame(health, field("progress").get(tile)); assertEquals(GRID, field("requestedUri").get(tile));
+            assertNull(field("retry").get(tile)); assertNull(field("surface").get(tile));
+            tile.play(GRID, false); assertSame(grid, field("gridSession").get(tile)); assertEquals(0, grid.closes);
+        } finally { tile.release(); assertEquals(1, grid.closes); grid.finishClose(); c.pause().stop().destroy(); }
+    }
+    @Test public void cancellingOrReplacingAnUpgradeReleasesItsPreviewAndQueuedMain() throws Exception {
+        for (boolean replace : new boolean[]{false, true}) {
+            ActivityController<Activity> c = Robolectric.buildActivity(Activity.class).setup(); LiveGrid grid = new LiveGrid(c.get());
+            CameraTile tile = warm(c.get(), grid);
+            try {
+                assertTrue(tile.prepareMainFromGrid(MAIN, GRID)); Object queued = field("startup").get(tile);
+                if (replace) tile.playMainOrGrid("rtsp://example.invalid/other-main", GRID); else tile.release();
+                assertEquals(1, grid.closes); assertNull(field("previewSession").get(tile)); assertNull(grid.view().getParent());
+                assertNotSame(queued, field("startup").get(tile)); grid.finishClose();
+                tile.release(); assertEquals(1, grid.closes); assertNull(field("startup").get(tile));
+            } finally { tile.release(); grid.finishClose(); c.pause().stop().destroy(); }
+        }
+    }
+    @Test public void staleGridAndIdenticalStreamUrisDoNotStartAWarmUpgrade() throws Exception {
+        ActivityController<Activity> c = Robolectric.buildActivity(Activity.class).setup(); LiveGrid grid = new LiveGrid(c.get());
+        CameraTile tile = warm(c.get(), grid);
+        try {
+            grid.overlay = false; assertFalse(tile.prepareMainFromGrid(MAIN, GRID)); grid.overlay = true;
+            assertFalse(tile.prepareMainFromGrid(GRID, GRID));
+            field("progress").set(tile, new VideoProgress(SystemClock.elapsedRealtime() - 5000));
+            assertFalse(tile.prepareMainFromGrid(MAIN, GRID)); assertSame(grid, field("gridSession").get(tile));
+            assertTrue(tile.usesNativeGrid()); assertNull(field("surface").get(tile)); assertEquals(0, grid.closes);
+        } finally { tile.release(); grid.finishClose(); c.pause().stop().destroy(); }
+    }
     private Tracks videoTracks(int width, int height, int support, boolean selected) {
         Format format = new Format.Builder().setSampleMimeType(MimeTypes.VIDEO_H265).setWidth(width).setHeight(height).build();
         return new Tracks(Collections.singletonList(new Tracks.Group(new TrackGroup("video", format), false, new int[]{support}, new boolean[]{selected})));

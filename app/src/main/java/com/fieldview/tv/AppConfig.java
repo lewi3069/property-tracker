@@ -18,6 +18,7 @@ public final class AppConfig {
     public boolean highResolutionCenter;
     public boolean motionLayoutEight;
     public boolean multiMotionLayout;
+    public boolean fastMotion = true;
     public String spotlightCamera = "";
     public String site = BuildConfig.TV_INTERFACE ? "wrenhaven" : "home", display = BuildConfig.TV_INTERFACE ? "tv" : "phone", broker = "", brokerUser = "", brokerPassword = "";
     public String clientId = "fieldview-" + UUID.randomUUID().toString();
@@ -69,6 +70,7 @@ public final class AppConfig {
                 .put("textureGrid", textureGrid)
                 .put("denseGrid", denseGrid).put("highResolutionCenter", highResolutionCenter).put("motionLayoutEight", motionLayoutEight).put("spotlightCamera", spotlightCamera)
                 .put("multiMotionLayout", multiMotionLayout)
+                .put("fastMotion", fastMotion)
                 .put("site", site).put("display", display).put("broker", broker).put("brokerUser", brokerUser)
                 .put("brokerPassword", brokerPassword).put("clientId", clientId);
     }
@@ -77,6 +79,7 @@ public final class AppConfig {
         AppConfig config = new AppConfig();
         config.textureGrid = object.optBoolean("textureGrid", false);
         config.denseGrid = object.optBoolean("denseGrid", false);
+        config.fastMotion = object.optBoolean("fastMotion", true);
         config.highResolutionCenter = object.optBoolean("highResolutionCenter", false);
         config.motionLayoutEight = object.optBoolean("motionLayoutEight", false);
         config.multiMotionLayout = object.optBoolean("multiMotionLayout", false);

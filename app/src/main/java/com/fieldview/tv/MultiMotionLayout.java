@@ -8,6 +8,8 @@ import java.util.List;
 final class MultiMotionLayout {
     private int slots, pending;
     private long pendingSince;
+    private boolean fastMotion;
+    void setFastMotion(boolean value) { fastMotion = value; }
     private final List<String> featured = new ArrayList<>();
     private final List<Long> selectedAt = new ArrayList<>();
 
@@ -24,7 +26,7 @@ final class MultiMotionLayout {
         if (now < pendingSince) pendingSince = now;
         for (int i = 0; i < selectedAt.size(); i++) if (now < selectedAt.get(i)) selectedAt.set(i, now);
         if (desired != pending) { pending = desired; pendingSince = now; }
-        long delay = pending > slots ? 2_000 : 15_000;
+        long delay = pending > slots ? (fastMotion ? 1_000 : 2_000) : 15_000;
         if (pending != slots && now >= pendingSince && now - pendingSince >= delay) {
             if (pending < slots) {
                 // Retain active cameras before filling any remaining slots with recent activity.
@@ -37,7 +39,7 @@ final class MultiMotionLayout {
         List<String> wanted = active.subList(0, Math.min(slots, active.size()));
         List<String> missing = new ArrayList<>(wanted); missing.removeAll(featured);
         for (int i = 0; i < featured.size() && !missing.isEmpty(); i++) {
-            if (!wanted.contains(featured.get(i)) && now >= selectedAt.get(i) && now - selectedAt.get(i) >= 10_000) {
+            if (!wanted.contains(featured.get(i)) && now >= selectedAt.get(i) && now - selectedAt.get(i) >= (fastMotion ? 5_000 : 10_000)) {
                 featured.set(i, missing.remove(0)); selectedAt.set(i, now);
             }
         }

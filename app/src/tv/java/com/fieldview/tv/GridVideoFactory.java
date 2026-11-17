@@ -74,6 +74,7 @@ final class GridVideoFactory {
         Session(Context context) { layout=new VLCVideoLayout(context);layout.setFocusable(false);runtime=acquire(context); }
         public View view() { return layout; }
         public Stats stats() { return latest; }
+        public boolean supportsLivePreview() { return !surfaceTrial; }
         public void start(String uri,Listener callbacks) {
             listener=callbacks;
             player=new MediaPlayer(runtime);

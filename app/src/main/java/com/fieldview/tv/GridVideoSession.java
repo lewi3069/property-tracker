@@ -20,6 +20,8 @@ interface GridVideoSession {
     View view();
     void start(String uri, Listener listener);
     Stats stats();
+    /** Only a texture output can remain visibly above the new main SurfaceView. */
+    default boolean supportsLivePreview() { return false; }
     /** Detach on the UI thread; complete on that thread after native resources are released. */
     void close(Runnable complete);
 }
