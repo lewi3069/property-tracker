@@ -8,6 +8,18 @@ import java.util.List;
 import static org.junit.Assert.*;
 
 public class CameraCatalogTest {
+    @Test public void storedPhoneAutoCountIsIgnoredWithoutChangingCatalogIdentityOrGridSize() throws Exception {
+        AppConfig config = new AppConfig(); config.cameras.add(camera("barn")); config.visibleCount = 9;
+        assertFalse(config.toJson().has("phoneAutoCount"));
+        for (Object stored : new Object[]{2, 3, 3.5, "3", true}) {
+            org.json.JSONObject old = config.toJson().put("phoneAutoCount", stored);
+            AppConfig restored = AppConfig.fromJson(old); org.json.JSONObject saved = restored.toJson();
+            assertFalse(String.valueOf(stored), saved.has("phoneAutoCount"));
+            assertEquals(9, restored.visibleCount); assertEquals(config.clientId, restored.clientId);
+            assertEquals(config.cameras.get(0).toJson().toString(), restored.cameras.get(0).toJson().toString());
+            assertEquals(config.toJson().toString(), saved.toString());
+        }
+    }
     @Test public void fasterMotionDefaultsOnAndCanRoundTripOffWithoutChangingCatalogOrIdentity() throws Exception {
         AppConfig c = new AppConfig(); c.cameras.add(camera("barn")); c.visibleCount = 13;
         org.json.JSONObject old = c.toJson(); old.remove("fastMotion"); assertTrue(AppConfig.fromJson(old).fastMotion);

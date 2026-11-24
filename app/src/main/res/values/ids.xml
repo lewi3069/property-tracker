@@ -17,6 +17,5 @@
     <item name="floating_camera" type="id" />
     <item name="phone_more" type="id" />
     <item name="phone_controls" type="id" />
-    <item name="phone_previous" type="id" />
-    <item name="phone_next" type="id" />
+    <item name="phone_settings_status" type="id" />
 </resources>

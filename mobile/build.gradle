@@ -27,6 +27,9 @@ android {
     }
 }
 
+// The pinned fullscreen RTSP main plays through LibVLC (all four AAR ABIs); every other phone view uses Media3.
+dependencies { implementation 'org.videolan.android:libvlc-all:3.7.7' }
+
 androidComponents {
     onVariants(selector().withBuildType('release')) { variant ->
         variant.applicationId.set('com.lewi3069.propertytracker')

@@ -174,4 +174,59 @@ public class ViewSelectorTest {
         selector.setMode(ViewSelector.AUTO, null);
         assertEquals(Collections.singletonList("gate"), selector.snapshot(2).featured);
     }
+
+    // Phone portrait Auto: a fixed 2 or 3 feeds, driven through the validated MQTT router.
+    private static String activity(String camera, String event, long expires, boolean active) {
+        return "{\"type\":\"" + (active ? "activity" : "activity_end") + "\",\"camera_id\":\"" + camera
+                + "\",\"event_id\":\"" + event + "\",\"expires_at\":" + expires + "}";
+    }
+    private ViewSelector portrait(int count, int cap) {
+        ViewSelector selector = new ViewSelector(Arrays.asList("barn", "yard", "pasture", "gate", "shed"), Collections.emptyMap(), 4, cap);
+        selector.setDefaultCamera("pasture"); selector.setPortraitAuto(count); return selector;
+    }
+    @Test public void portraitAutoShowsUpToThreeActiveFeedsAndReturnsToIdleWhenTheyClearOrExpire() {
+        ViewSelector s = portrait(3, 9);
+        CommandRouter router = new CommandRouter(s, (count, until) -> s.setCapacity(count));
+        assertEquals(Arrays.asList("pasture", "barn", "yard"), s.snapshot(0).visible);
+        assertTrue(router.accept(activity("gate", "a", 31_000, true), false, 1_000));
+        assertEquals(Arrays.asList("gate", "pasture", "barn"), s.snapshot(1_000).visible);
+        assertTrue(router.accept(activity("shed", "b", 32_000, true), false, 2_000));
+        assertEquals(Collections.singletonList("gate"), s.snapshot(2_000).featured); // The existing 8 s dwell still applies.
+        assertTrue(router.accept("{\"type\":\"layout\",\"max_visible\":9,\"expires_at\":47000}", false, 2_001));
+        assertEquals("Layout overrides don't restart the portrait hold", Collections.singletonList("gate"), s.snapshot(2_001).featured);
+        assertEquals(Arrays.asList("shed", "gate", "pasture"), s.snapshot(9_000).visible);
+        assertTrue(router.accept(activity("barn", "c", 40_000, true), false, 9_500));
+        assertTrue(router.accept(activity("yard", "d", 41_000, true), false, 10_000));
+        assertEquals("The three most recent of four active cameras", Arrays.asList("yard", "barn", "shed"), s.snapshot(17_000).visible);
+        assertEquals(3, s.snapshot(17_000).featured.size());
+        assertTrue(router.accept("{\"type\":\"layout\",\"max_visible\":9,\"expires_at\":47000}", false, 17_000));
+        assertEquals("A layout override cannot raise portrait Auto", Arrays.asList("yard", "barn", "shed"), s.snapshot(17_000).visible);
+        for (String camera : new String[]{"yard", "barn", "shed", "gate"})
+            assertTrue(router.accept(activity(camera, "end-" + camera, 48_000, false), false, 18_000));
+        ViewSelector.Selection idle = s.snapshot(18_000);
+        assertEquals("overview", idle.reason); assertTrue(idle.featured.isEmpty());
+        assertEquals(Arrays.asList("pasture", "barn", "yard"), idle.visible);
+        assertTrue(router.accept(activity("gate", "e", 50_000, true), false, 20_000));
+        assertEquals(Arrays.asList("gate", "pasture", "barn"), s.snapshot(20_000).visible);
+        assertEquals(Arrays.asList("pasture", "barn", "yard"), s.snapshot(50_000).visible);
+    }
+    @Test public void portraitAutoHonorsTheDeviceCapAndLeavesGridPinAndTheLegacyLayoutUnchanged() {
+        ViewSelector two = portrait(2, 9);
+        for (String camera : new String[]{"gate", "shed", "barn"}) two.activity(camera, 1_000, 31_000);
+        assertEquals(Arrays.asList("barn", "gate"), two.snapshot(1_000).visible);
+        two.setCapacity(9); assertEquals(Arrays.asList("barn", "gate"), two.snapshot(1_000).visible);
+        assertEquals(Arrays.asList("pasture", "barn"), portrait(3, 2).snapshot(0).visible);
+        ViewSelector missingDefault = portrait(3, 9); missingDefault.setDefaultCamera("missing");
+        assertEquals(Arrays.asList("barn", "yard", "pasture"), missingDefault.snapshot(0).visible);
+        ViewSelector grid = portrait(3, 9); grid.setMode(ViewSelector.GRID, null);
+        assertEquals(Arrays.asList("barn", "yard", "pasture", "gate"), grid.snapshot(0).visible);
+        grid.setMode(ViewSelector.PIN, "shed"); assertEquals(Collections.singletonList("shed"), grid.snapshot(0).visible);
+        // Disabled policy (TV, phone landscape, or an invalid count): the saved count and two featured cameras.
+        ViewSelector legacy = portrait(4, 9); assertEquals(0, legacy.portraitAuto());
+        assertEquals(Arrays.asList("barn", "yard", "pasture", "gate"), legacy.snapshot(0).visible);
+        for (String camera : new String[]{"gate", "shed", "barn"}) legacy.activity(camera, 1_000, 31_000);
+        assertEquals(Arrays.asList("barn", "gate"), legacy.snapshot(1_000).featured);
+        assertEquals(Arrays.asList("barn", "gate", "yard", "pasture"), legacy.snapshot(1_000).visible);
+        two.setPortraitAuto(0); assertEquals(5, two.snapshot(1_000).visible.size()); // Saved/overridden capacity again.
+    }
 }

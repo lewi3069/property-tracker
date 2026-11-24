@@ -53,6 +53,8 @@ public final class ViewSelector {
     public void setCapacity(int count) {
         if (count < 1 || count > 13) throw new IllegalArgumentException("Camera count must be 1–13");
         capacity = Math.min(count, maxCapacity);
+        // A legacy layout override cannot change portrait Auto or reset its camera hold.
+        if (portraitAuto > 0 && AUTO.equals(mode)) return;
         current = null;
         multiLayout.reset();
     }
@@ -60,6 +62,17 @@ public final class ViewSelector {
     public void setDefaultCamera(String id) { defaultCamera = id; }
     public void setMotionLayoutEight(boolean value) { motionLayoutEight = value; }
     public void setMultiMotionLayout(boolean value) { if (multiMotionLayout != value) multiLayout.reset(); multiMotionLayout = value; }
+    private int portraitAuto;
+    /**
+     * Phone portrait Auto shows exactly 2 or 3 feeds within the device cap, up to that many active at once,
+     * then the default camera and saved order. Layout overrides do not change it. Any other value restores the saved layout.
+     */
+    public void setPortraitAuto(int count) {
+        int next = count == 2 || count == 3 ? count : 0;
+        if (portraitAuto == next) return;
+        portraitAuto = next; current = null; multiLayout.reset();
+    }
+    public int portraitAuto() { return portraitAuto; }
 
     /** Keep activity/location and a valid manual selection when the catalog is edited. */
     public void reconfigure(List<String> ids, Map<String, List<String>> mapping) {
@@ -141,7 +154,9 @@ public final class ViewSelector {
         String reason;
         int priority;
         List<String> featured = new ArrayList<>();
-        int featuredLimit = capacity == 13 ? 1 : Math.min(2, capacity);
+        boolean portrait = portraitAuto > 0 && AUTO.equals(mode);
+        int limit = portrait ? Math.min(portraitAuto, maxCapacity) : capacity;
+        int featuredLimit = portrait ? limit : capacity == 13 ? 1 : Math.min(2, capacity);
         if (PIN.equals(mode)) { reason = PIN; priority = 100; featured.add(pinned); }
         else if (GRID.equals(mode)) { reason = GRID; priority = 100; }
         else if (!motionIds.isEmpty()) { reason = "activity"; priority = 20; featured.addAll(motionIds.subList(0, Math.min(featuredLimit, motionIds.size()))); }
@@ -150,7 +165,7 @@ public final class ViewSelector {
 
         boolean same = current != null && current.reason.equals(reason) && current.featured.equals(featured);
         List<String> eligible = current != null && current.reason.equals("activity") ? motionIds : presenceIds;
-        boolean adaptive = motionLayoutEight && capacity == 13 && cameras.size() >= 13 && AUTO.equals(mode);
+        boolean adaptive = !portrait && motionLayoutEight && capacity == 13 && cameras.size() >= 13 && AUTO.equals(mode);
         boolean activitySelected = current != null && "activity".equals(current.reason);
         // Keep the first detection immediate, but avoid cycling main decoders on
         // short motion/off bursts. Other layouts and explicit Grid/Pin stay immediate.
@@ -169,10 +184,10 @@ public final class ViewSelector {
         } else multiLayout.reset();
         LinkedHashSet<String> ordered = new LinkedHashSet<>(selected);
         if (motionEight) ordered.addAll(motionIds);
-        if (!PIN.equals(mode) && capacity == 13 && cameras.contains(defaultCamera)) ordered.add(defaultCamera);
+        if (!PIN.equals(mode) && (portrait || capacity == 13) && cameras.contains(defaultCamera)) ordered.add(defaultCamera);
         if (!PIN.equals(mode)) ordered.addAll(cameras);
         List<String> visible = new ArrayList<>(ordered);
-        int visibleLimit = motionSlots == 4 ? 4 : motionSlots == 3 ? 7 : motionSlots == 2 ? 10 : motionEight ? 8 : capacity;
+        int visibleLimit = motionSlots == 4 ? 4 : motionSlots == 3 ? 7 : motionSlots == 2 ? 10 : motionEight ? 8 : limit;
         if (motionSlots == 1 && !selected.isEmpty()) {
             String focus = selected.get(0);
             if (panoramic(focus)) visibleLimit = 5;

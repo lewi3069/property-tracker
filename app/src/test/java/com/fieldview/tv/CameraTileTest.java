@@ -60,6 +60,10 @@ public class CameraTileTest {
         field("firstFrame").setBoolean(tile, true); field("requestedUri").set(tile, GRID); field("activeUri").set(tile, GRID);
         return tile;
     }
+    @Test public void tvNeverTakesThePhonePinnedMainRoute() {
+        assertTrue(BuildConfig.TV_INTERFACE);
+        assertFalse(CameraTile.phoneNativeMain(BuildConfig.TV_INTERFACE, false, true, true, false, "rtsp://192.0.2.10:554/main"));
+    }
     @Test public void liveGridStaysAttachedUntilTheMainActuallyRendersAndIsReleasedOnce() throws Exception {
         ActivityController<Activity> c = Robolectric.buildActivity(Activity.class).setup(); LiveGrid grid = new LiveGrid(c.get());
         CameraTile tile = warm(c.get(), grid);

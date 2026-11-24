@@ -63,12 +63,29 @@ public final class CameraTile extends FrameLayout {
     private Runnable mainUnavailable;
     private java.util.function.DoubleConsumer aspectListener;
     private double reportedAspect;
+    private boolean reportedMainStream;
     void setAspectListener(java.util.function.DoubleConsumer value) { aspectListener = value; }
     private void reportAspect(int width, int height) {
+        reportAspect(width, height, 1f);
+    }
+    private void reportAspect(int width, int height, float pixelWidthHeightRatio) {
         if (width <= 0 || height <= 0) return;
         double ratio = (double) width / height;
-        if (Math.abs(ratio - reportedAspect) < .01) return;
+        if (!BuildConfig.TV_INTERFACE) {
+            double displayAspect = ratio;
+            if (Float.isFinite(pixelWidthHeightRatio) && pixelWidthHeightRatio > 0) {
+                displayAspect *= pixelWidthHeightRatio;
+            }
+            // Refit the zoom bounds when the displayed picture changes shape, including after a stream fallback.
+            if (displayAspect != pictureAspect) {
+                pictureAspect = displayAspect;
+                if (zoom != 1f) applyZoom();
+            }
+        }
+        if (Math.abs(ratio - reportedAspect) < .01
+                && (BuildConfig.TV_INTERFACE || reportedMainStream == mainStream)) return;
         reportedAspect = ratio;
+        reportedMainStream = mainStream;
         Log.i("FieldviewPlayer", diagnosticPrefix() + "event=video_size size=" + width + "x" + height);
         if (aspectListener != null) aspectListener.accept(ratio);
     }
@@ -156,9 +173,15 @@ public final class CameraTile extends FrameLayout {
         return true;
     }
 
-    public void setFeatured(boolean value) { featured = value; if (startup != null) startup.prioritize(value); updateBorder(); }
+    public void setFeatured(boolean value) {
+        featured = value;
+        if (startup != null) startup.prioritize(value);
+        if (BuildConfig.TV_INTERFACE) updateBorder();
+    }
     boolean usesTexture() { return texture; }
     boolean usesNativeGrid() { return nativeGrid; }
+    /** True while this tile's current attempt is a main stream rather than the grid substream. */
+    boolean playingMainStream() { return mainStream; }
     void setMainUnavailableListener(Runnable value) { mainUnavailable = value; }
     boolean mainFormatRejected() { return mainFormatRejected; }
     void setMainSuppressed(boolean value) { setMainSuppressed(value, false); }
@@ -182,6 +205,50 @@ public final class CameraTile extends FrameLayout {
     @Override protected void onSizeChanged(int width, int height, int oldWidth, int oldHeight) {
         super.onSizeChanged(width, height, oldWidth, oldHeight);
         if (nativeGrid && width > 0 && height > 0 && (width != oldWidth || height != oldHeight)) nativeTileResizes++;
+        if (zoom != 1f) applyZoom();
+    }
+
+    // Phone Pin zoom. Only the video view scales and moves: the tile, its layout and its status label stay fixed,
+    // and the stream, decoder and surface are untouched. Kept across a same-camera fallback; reset on release.
+    static final float MAX_ZOOM = 4f;
+    private float zoom = 1f, panX, panY;
+    private double pictureAspect;
+    float videoZoom() { return zoom; }
+    /**
+     * Scales by factor within 1x fit to 4x so that the picture point under from (tile coordinates) lands under to,
+     * then clamps the offset to the fitted picture.
+     */
+    void zoomVideo(float factor, float fromX, float fromY, float toX, float toY) {
+        float next = Math.max(1f, Math.min(MAX_ZOOM, zoom * factor)), ratio = next / zoom;
+        panX = toX - getPaddingLeft() - (fromX - getPaddingLeft() - panX) * ratio;
+        panY = toY - getPaddingTop() - (fromY - getPaddingTop() - panY) * ratio;
+        zoom = next; applyZoom();
+    }
+    void resetZoom() {
+        if (zoom == 1f && panX == 0f && panY == 0f) return;
+        zoom = 1f; panX = panY = 0f; applyZoom();
+    }
+    private void applyZoom() {
+        int width = getWidth() - getPaddingLeft() - getPaddingRight(), height = getHeight() - getPaddingTop() - getPaddingBottom();
+        if (width > 0 && height > 0) {
+            // The measured view fits the picture at its own shape, centered; an unknown shape fills the view.
+            double aspect = pictureAspect > 0 ? pictureAspect : (double) width / height;
+            panX = clampPan(panX, width, (float) Math.min(width, height * aspect));
+            panY = clampPan(panY, height, (float) Math.min(height, width / aspect));
+        }
+        transformVideo(surface);
+        if (gridSession != null) transformVideo(gridSession.view());
+    }
+    /** The scaled picture covers the view along this axis, or stays centered while smaller, so letterbox bars never pan in. */
+    private float clampPan(float pan, int view, float picture) {
+        float start = (view - picture) / 2 * zoom, scaled = picture * zoom;
+        if (scaled <= view) return (view - scaled) / 2 - start;
+        return Math.max(view - start - scaled, Math.min(-start, pan));
+    }
+    private void transformVideo(View video) {
+        if (video == null) return;
+        video.setPivotX(0); video.setPivotY(0); video.setScaleX(zoom); video.setScaleY(zoom);
+        video.setTranslationX(panX); video.setTranslationY(panY);
     }
     /** Set before play; wall playback and HEVC retain the normal decoder policy. */
     public void setSoftwareFloatingH264(boolean value) { softwareFloatingH264 = floating && value; }
@@ -217,6 +284,7 @@ public final class CameraTile extends FrameLayout {
     private void showStatus(String value) { status.setText(value); updateStatusVisibility(); }
     private void updateStatusVisibility() { status.setVisibility(fullscreen && "Live".contentEquals(status.getText()) ? View.GONE : View.VISIBLE); }
     private void updateBorder() {
+        if (!BuildConfig.TV_INTERFACE) { setBackgroundColor(Color.BLACK); return; }
         if (fullscreen && !fullscreenFocusBorder) { setBackgroundColor(Color.BLACK); return; }
         GradientDrawable background = new GradientDrawable(); background.setColor(Color.BLACK);
         background.setStroke(dp(hasFocus() ? 3 : 1), hasFocus() ? 0xFFD9F2BD : featured ? 0xFF9BBF79 : 0xFF28322D);
@@ -270,27 +338,41 @@ public final class CameraTile extends FrameLayout {
                 + " view=" + (floating ? "float" : "wall") + " profile=" + (mainStream ? "main" : "sub") + " ";
     }
 
+    /** Phone: only the manually pinned, non-floating fullscreen RTSP main stream uses the native hardware-first backend. */
+    static boolean phoneNativeMain(boolean tv, boolean floating, boolean main, boolean fullscreen, boolean focusBorder, String uri) {
+        return !tv && !floating && main && fullscreen && !focusBorder && uri != null && uri.startsWith("rtsp://");
+    }
+    boolean usesPhoneNativeMain() {
+        return !nativeGrid && phoneNativeMain(BuildConfig.TV_INTERFACE, floating, mainStream, fullscreen, fullscreenFocusBorder, activeUri);
+    }
+    /** TV hardware-main policy (hardware-only decoders, format checks); never applied to phone playback. */
+    private boolean tvHardwareMain() { return BuildConfig.TV_INTERFACE && mainStream && fallbackUri != null; }
+
     private void startPlayer() {
         if (released) return;
         generation++; attemptStartedAt = SystemClock.elapsedRealtime();
-        Log.i("FieldviewPlayer", diagnosticPrefix() + "event=start renderer=" + (texture ? "texture" : "surface") + " engine=" + (nativeGrid ? "native" : "media3"));
+        boolean phoneMain = usesPhoneNativeMain();
+        Log.i("FieldviewPlayer", diagnosticPrefix() + "event=start renderer=" + (texture ? "texture" : "surface") + " engine="
+                + (nativeGrid ? "native" : phoneMain ? "libvlc decoder=hardware_first" : "media3"));
         firstFrame = false;
         VideoProgress attemptProgress = new VideoProgress(SystemClock.elapsedRealtime());
         progress = attemptProgress;
         nextHealthLogAt = SystemClock.elapsedRealtime() + 30_000;
         showStatus(previewSession != null ? "Live" : "Connecting…");
         armStallTimeout();
-        if (nativeGrid) {
-            try { startNativeGrid(attemptProgress); }
-            catch (RuntimeException | LinkageError error) { scheduleRetry("Native grid unavailable · try the standard layout"); }
+        if (nativeGrid || phoneMain) {
+            // A failed phone main falls back once to its distinct substream on Media3 (scheduleRetry); never main to main.
+            try { startNativeGrid(attemptProgress, phoneMain); }
+            catch (RuntimeException | LinkageError error) { scheduleRetry(phoneMain ? "Main stream unavailable" : "Native grid unavailable · try the standard layout"); }
             return;
         }
         try {
+            boolean hardwareMain = tvHardwareMain();
             DefaultTrackSelector tracks = new DefaultTrackSelector(getContext());
-            configureVideoTracks(tracks, mainStream && fallbackUri != null);
-            MediaCodecSelector codecs = mainStream && fallbackUri != null ? hardwareOnly(MediaCodecSelector.DEFAULT)
+            configureVideoTracks(tracks, hardwareMain);
+            MediaCodecSelector codecs = hardwareMain ? hardwareOnly(MediaCodecSelector.DEFAULT)
                     : decoderSelector(softwareFloatingH264, MediaCodecSelector.DEFAULT, softwareFirst(MediaCodecSelector.DEFAULT));
-            DefaultRenderersFactory renderers = mainStream && fallbackUri != null
+            DefaultRenderersFactory renderers = hardwareMain
                     ? new HardwareMainRenderersFactory(getContext()) : new DefaultRenderersFactory(getContext());
             renderers.setEnableDecoderFallback(true).setMediaCodecSelector(codecs);
             DefaultAllocator attemptAllocator = new DefaultAllocator(true, C.DEFAULT_BUFFER_SEGMENT_SIZE);
@@ -306,10 +388,10 @@ public final class CameraTile extends FrameLayout {
             player.setVolume(0f); surface.setPlayer(player);
             player.addListener(new Player.Listener() {
                 @Override public void onVideoSizeChanged(androidx.media3.common.VideoSize size) {
-                    if (!released && player == attempt) reportAspect(size.width, size.height);
+                    if (!released && player == attempt) reportAspect(size.width, size.height, size.pixelWidthHeightRatio);
                 }
                 @Override public void onTracksChanged(Tracks available) {
-                    if (released || player != attempt || !mainStream || fallbackUri == null || !unsupportedVideoTracks(available)) return;
+                    if (released || player != attempt || !tvHardwareMain() || !unsupportedVideoTracks(available)) return;
                     mainFormatRejected = true;
                     for (Tracks.Group group : available.getGroups()) if (group.getType() == C.TRACK_TYPE_VIDEO && group.length > 0) {
                         Format format = group.getTrackFormat(0);
@@ -322,7 +404,7 @@ public final class CameraTile extends FrameLayout {
                 @Override public void onPlayerError(PlaybackException error) {
                     if (released || player != attempt) return;
                     Format rejected = error instanceof ExoPlaybackException ? ((ExoPlaybackException) error).rendererFormat : null;
-                    if (mainStream && fallbackUri != null && rejected != null && HardwareMainRenderersFactory.tooWide(rejected)) {
+                    if (tvHardwareMain() && rejected != null && HardwareMainRenderersFactory.tooWide(rejected)) {
                         mainFormatRejected = true;
                         Log.w("FieldviewPlayer", diagnosticPrefix() + "event=main_unsupported mime=" + rejected.sampleMimeType
                                 + " size=" + rejected.width + "x" + rejected.height);
@@ -360,10 +442,15 @@ public final class CameraTile extends FrameLayout {
         } catch (RuntimeException error) { scheduleRetry(PlaybackFailure.describe(error)); }
     }
 
-    private void startNativeGrid(VideoProgress attemptProgress) {
+    /** TV dense-grid tiles and the phone's pinned main share the compile-time native boundary, GridVideoFactory. */
+    private void startNativeGrid(VideoProgress attemptProgress, boolean phoneMain) {
         GridVideoSession attempt = GridVideoFactory.create(getContext()); gridSession = attempt;
+        // One video surface at a time; releasePrimaryPlayer restores the Media3 view.
+        if (phoneMain && surface != null) surface.setVisibility(View.GONE);
         addView(attempt.view(), 0, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-        Log.i("FieldviewPlayer", diagnosticPrefix() + "event=decoder name=libvlc.avcodec.software");
+        if (zoom != 1f) transformVideo(attempt.view());
+        Log.i("FieldviewPlayer", diagnosticPrefix() + "event=decoder name=" + (phoneMain ? "libvlc policy=hardware_first" : "libvlc.avcodec.software"));
+        boolean[] advancing = {false};
         attempt.start(activeUri, new GridVideoSession.Listener() {
             @Override public void frames() {
                 if (!released && previewSession == attempt) { attemptProgress.frame(SystemClock.elapsedRealtime()); return; }
@@ -372,15 +459,20 @@ public final class CameraTile extends FrameLayout {
                 if (!firstFrame) {
                     firstFrame = true; attemptProgress.rendered(now); finishStartup(); showStatus(liveStatus());
                     GridVideoSession.Stats stats = attempt.stats();
-                    reportAspect(stats.width, stats.height);
+                    reportAspect(stats.width, stats.height, stats.pixelWidthHeightRatio);
                     Log.i("FieldviewPlayer", diagnosticPrefix() + "event=first_frame startup_ms=" + (now - attemptStartedAt)
-                            + " mime=video/native size=" + stats.width + "x" + stats.height);
+                            + (phoneMain ? " engine=libvlc" : " mime=video/native") + " size=" + stats.width + "x" + stats.height);
+                } else if (phoneMain && !advancing[0]) {
+                    // One record that pictures keep advancing after the first; later health lines repeat these counters.
+                    advancing[0] = true; GridVideoSession.Stats stats = attempt.stats();
+                    Log.i("FieldviewPlayer", diagnosticPrefix() + "event=frames_advancing engine=libvlc displayed=" + stats.displayed
+                            + " decoded=" + stats.decoded + " lost=" + stats.lost + " size=" + stats.width + "x" + stats.height);
                 }
             }
             @Override public void error() {
                 if (!released && previewSession == attempt) { releasePreview(); showStatus("Connecting…"); return; }
                 if (released || gridSession != attempt) return;
-                Log.w("FieldviewPlayer", diagnosticPrefix() + "event=failure code=NATIVE_STREAM_ERROR");
+                Log.w("FieldviewPlayer", diagnosticPrefix() + "event=failure code=" + (phoneMain ? "LIBVLC_STREAM_ERROR" : "NATIVE_STREAM_ERROR"));
                 scheduleRetry("Camera stream unavailable");
             }
         });
@@ -415,8 +507,8 @@ public final class CameraTile extends FrameLayout {
         ExoPlayer current = player; VideoProgress currentProgress = progress;
         if (gridSession != null && currentProgress != null) {
             GridVideoSession.Stats stats = gridSession.stats();
-            reportAspect(stats.width, stats.height);
-            String message = diagnosticPrefix() + (stalledVideo ? "event=stalled " : "event=health ")
+            reportAspect(stats.width, stats.height, stats.pixelWidthHeightRatio);
+            String message = diagnosticPrefix() + (stalledVideo ? "event=stalled " : "event=health ") + (nativeGrid ? "" : "engine=libvlc ")
                     + "video_width=" + stats.width + " video_height=" + stats.height + " "
                     + "frame_silent_ms=" + currentProgress.silentFor(now) + " native_decoded=" + stats.decoded
                     + " native_displayed=" + stats.displayed + " native_lost=" + stats.lost + " native_input_bytes=" + stats.bytes
@@ -506,6 +598,6 @@ public final class CameraTile extends FrameLayout {
         } finally { if (previousStartup != null) previousStartup.finish(); }
     }
 
-    public void release() { released = true; disposePlayer(); activeUri = null; requestedUri = null; fallbackUri = null; fallbackActive = false; mainUnavailable = null; mainFormatRejected = false; mainSuppressed = false; mainSuppressedFormatUnsupported = false; }
+    public void release() { released = true; disposePlayer(); resetZoom(); activeUri = null; requestedUri = null; fallbackUri = null; fallbackActive = false; mainUnavailable = null; mainFormatRejected = false; mainSuppressed = false; mainSuppressedFormatUnsupported = false; }
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
 }
